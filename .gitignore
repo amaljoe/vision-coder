@@ -205,3 +205,5 @@ data
 scratch*
 slurm-*
 output
+notebooks/Qwen2.5-VL-3B-Instruct-Thinking/
+notebooks/wandb/

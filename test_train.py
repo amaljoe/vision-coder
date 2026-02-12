@@ -101,6 +101,17 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_DATASETS_OFFLINE"] = "1"
 
+# Make torch.distributed/NCCL rendezvous deterministic for local trainer <-> vLLM comms.
+os.environ.setdefault("MASTER_ADDR", "127.0.0.1")
+os.environ.setdefault("MASTER_PORT", "29500")
+os.environ.setdefault("NCCL_SOCKET_IFNAME", "lo")
+os.environ.setdefault("GLOO_SOCKET_IFNAME", "lo")
+os.environ.setdefault("NCCL_IB_DISABLE", "1")
+
+# Clear proxies so localhost vLLM server is always reachable.
+for _proxy_var in ("ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
+    os.environ.pop(_proxy_var, None)
+
 # (Do NOT set CUDA_VISIBLE_DEVICES here; provide it at launch time.)
 # e.g.
 # CUDA_VISIBLE_DEVICES=0,1,2 accelerate launch --num_processes=3 test_train.py
@@ -157,7 +168,7 @@ def main():
     )
 
     # --- GRPO training args (short test run) ---
-    training_args = GRPOConfig(
+    base_config = dict(
         output_dir="/tmp/vcoder-test-run",
         learning_rate=5e-6,
         remove_unused_columns=False,
@@ -167,27 +178,49 @@ def main():
         gradient_accumulation_steps=1,
         max_completion_length=512,
         num_generations=2,          # lowered for quicker debug runs
-        use_vllm=True,
-        vllm_mode="server",
-        vllm_server_base_url="http://localhost:8000",
         report_to=["tensorboard"],
         logging_steps=1,
         save_strategy="no",
     )
+    vllm_overrides = dict(
+        use_vllm=True,
+        vllm_mode="server",
+        vllm_server_base_url="http://localhost:8000",
+    )
 
     # --- Trainer ---
-    trainer = GRPOTrainer(
-        model=model,
-        processing_class=processor,
-        reward_funcs=[
-            format_reward,
-            html_validity_reward,
-            structural_similarity_reward,
-        ],
-        args=training_args,
-        train_dataset=train_dataset,
-        peft_config=lora_config,
-    )
+    reward_funcs = [
+        format_reward,
+        html_validity_reward,
+        structural_similarity_reward,
+    ]
+
+    training_args = GRPOConfig(**base_config, **vllm_overrides)
+
+    try:
+        trainer = GRPOTrainer(
+            model=model,
+            processing_class=processor,
+            reward_funcs=reward_funcs,
+            args=training_args,
+            train_dataset=train_dataset,
+            peft_config=lora_config,
+        )
+    except RuntimeError as exc:
+        error_text = str(exc)
+        if "NCCL error" not in error_text:
+            raise
+        raise RuntimeError(
+            "Failed to initialize NCCL communicator for GRPO + vLLM server mode.\n"
+            "Keep use_vllm=True and start vLLM on a separate GPU, then rerun with local-only NCCL env.\n"
+            "Recommended launch:\n"
+            "  1) Terminal A (vLLM):\n"
+            "     CUDA_VISIBLE_DEVICES=4 vllm serve Qwen/Qwen3-VL-2B-Instruct --host 0.0.0.0 --port 8000\n"
+            "  2) Terminal B (trainer):\n"
+            "     CUDA_VISIBLE_DEVICES=0 MASTER_ADDR=127.0.0.1 MASTER_PORT=29500 NCCL_SOCKET_IFNAME=lo "
+            "GLOO_SOCKET_IFNAME=lo NCCL_IB_DISABLE=1 python test_train.py\n"
+            f"Original error: {error_text}"
+        ) from exc
 
     # Workaround: TRL sets tools=[] which VLLMClient.chat() rejects (checks `is not None`)
     trainer.vllm_generation.tools = None

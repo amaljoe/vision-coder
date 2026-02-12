@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "vcoder"
+version = "0.1.0"
+description = "Vision-Coder: GRPO training for UI screenshot to HTML/CSS generation"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.9.0",
+    "transformers>=4.57.0",
+    "trl>=0.28.0",
+    "peft>=0.18.1",
+    "accelerate",
+    "datasets",
+    "huggingface-hub",
+    "tensorboard",
+    "qwen-vl-utils",
+    "playwright",
+    "scikit-image",
+    "beautifulsoup4",
+    "html5lib",
+    "lxml",
+    "pillow",
+]
+
+[tool.setuptools.packages.find]
+include = ["vcoder*"]

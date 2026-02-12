@@ -30,7 +30,12 @@ sleep 5
 
 /usr/sbin/sshd -f ~/.ssh/sshd_4422/sshd_config
 
-# jupyter lab --ip=0.0.0.0 --port=8888
+# Activate vcoder environment
+mamba activate /dev/shm/vcoder3
+
+# Launch TensorBoard for training monitoring
+export PLAYWRIGHT_BROWSERS_PATH=/dev/shm/pw-browsers
+tensorboard --logdir=~/workspace/vision-coder/notebooks/Qwen3-VL-2B-HTMLCSS/runs --host=0.0.0.0 --port=6006 &
 
 sleep infinity
 

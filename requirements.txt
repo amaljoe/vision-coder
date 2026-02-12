@@ -166,3 +166,16 @@ websockets==16.0
 wheel==0.45.1
 xgrammar==0.1.27
 yarl==1.22.0
+
+# --- vcoder training dependencies ---
+trl>=0.28.0
+peft>=0.18.1
+accelerate
+datasets
+tensorboard
+qwen-vl-utils
+playwright
+scikit-image
+beautifulsoup4
+html5lib
+lxml

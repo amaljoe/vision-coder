@@ -1,55 +1,79 @@
 from __future__ import annotations
 
 from itertools import islice
-from typing import Any
 
-DEFAULT_WEBSIGHT_DATASET = "HuggingFaceM4/WebSight"
+from datasets import Dataset, load_dataset
+
+
+SYSTEM_PROMPT = (
+    "You are a UI-to-code assistant. Given a screenshot of a website, generate the complete HTML code "
+    "with inline Tailwind CSS that reproduces the visual layout. Output only the HTML code wrapped in "
+    "```html and ``` tags."
+)
+
+
+def _make_conversation(example: dict) -> dict:
+    """Convert a raw WebSight row into the GRPO conversation format."""
+    conversation = [
+        {
+            "role": "system",
+            "content": [{"type": "text", "text": SYSTEM_PROMPT}],
+        },
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": "Generate the HTML code that reproduces this website screenshot."},
+            ],
+        },
+    ]
+    return {
+        "prompt": conversation,
+        "image": example["image"].convert("RGB"),
+        "solution": example["text"],
+    }
 
 
 def load_websight_dataset(
-    processor: Any,
-    split: str = "train",
-    *,
-    dataset_name: str = DEFAULT_WEBSIGHT_DATASET,
-    streaming: bool = False,
-    max_samples: int | None = None,
-    **load_kwargs: Any,
-):
-    """Load the WebSight dataset and preprocess each sample.
+    max_samples: int = 2000,
+    max_html_chars: int = 3000,
+    seed: int = 42,
+) -> Dataset:
+    """Load WebSight dataset via streaming to avoid downloading all 300+ GB.
+
+    Uses streaming + islice to fetch only the needed samples, then
+    materializes into a regular Dataset for GRPO training.
 
     Args:
-        processor: Callable used to convert each raw dataset row into model-ready features.
-        split: Any Hugging Face split expression (for example ``"train[:1%]"``) to support
-            partial dataset downloads for large datasets.
-        dataset_name: Hugging Face dataset id to load.
-        streaming: If ``True``, stream examples without downloading full shards.
-        max_samples: Optional cap on the number of samples after split selection.
-        **load_kwargs: Extra keyword arguments forwarded to ``datasets.load_dataset``.
+        max_samples: Number of samples to collect (after filtering).
+        max_html_chars: Skip HTML longer than this (to fit completion limit).
+        seed: Random seed for shuffling the final dataset.
 
     Returns:
-        A processed ``datasets.Dataset``.
+        A HuggingFace Dataset with columns: prompt, image, solution.
     """
-    from datasets import Dataset, load_dataset
-
-    dataset = load_dataset(
-        dataset_name,
-        split=split,
-        streaming=streaming,
-        **load_kwargs,
+    stream = load_dataset(
+        "HuggingFaceM4/WebSight", "v0.2", split="train", streaming=True
     )
 
-    if max_samples is not None and max_samples <= 0:
-        raise ValueError("max_samples must be a positive integer when provided")
+    # Stream, filter by HTML length only, and collect up to max_samples
+    collected = []
+    count = 0
+    for example in stream:
+        if len(example["text"]) > max_html_chars:
+            count += 1
+            continue
+        collected.append(_make_conversation(example))
+        if len(collected) >= max_samples:
+            break
 
-    if streaming:
-        if max_samples is None:
-            raise ValueError(
-                "max_samples is required when streaming=True so the result can be "
-                "materialized as a non-iterable dataset"
-            )
-        dataset = Dataset.from_list(list(islice(dataset, max_samples)))
-    elif max_samples is not None:
-        max_samples = min(max_samples, len(dataset))
-        dataset = dataset.select(range(max_samples))
+    print(f"Skipped {count} samples due to HTML length > {max_html_chars} chars.")
 
-    return dataset.map(processor)
+    ds = Dataset.from_list(collected)
+    ds = ds.shuffle(seed=seed)
+    return ds
+
+
+if __name__ == "__main__":
+    ds = load_websight_dataset(max_samples=10)
+    print(ds[0])

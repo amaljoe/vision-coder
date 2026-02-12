@@ -208,3 +208,6 @@ output
 notebooks/Qwen2.5-VL-3B-Instruct-Thinking/
 notebooks/Qwen3-VL-2B-HTMLCSS/
 notebooks/wandb/
+
+!vcoder/data/
+!vcoder/data/*.py

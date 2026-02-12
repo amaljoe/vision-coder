@@ -22,6 +22,9 @@ class FakeDataset:
     def __len__(self):
         return self.size
 
+    def __iter__(self):
+        return iter({"value": i} for i in range(self.size))
+
     def select(self, idxs):
         self.selected = list(idxs)
         self.size = len(self.selected)
@@ -29,7 +32,7 @@ class FakeDataset:
 
     def take(self, n):
         self.taken = n
-        return self
+        return iter({"value": i} for i in range(n))
 
     def map(self, processor):
         self.processor = processor
@@ -39,7 +42,8 @@ class FakeDataset:
 class LoadWebSightDatasetTests(unittest.TestCase):
     def _run_with_fake_datasets(self, fake_dataset, **kwargs):
         mocked_loader = Mock(return_value=fake_dataset)
-        fake_datasets_module = types.SimpleNamespace(load_dataset=mocked_loader)
+        dataset_factory = types.SimpleNamespace(from_list=Mock(return_value=FakeDataset()))
+        fake_datasets_module = types.SimpleNamespace(load_dataset=mocked_loader, Dataset=dataset_factory)
 
         with patch.dict("sys.modules", {"datasets": fake_datasets_module}):
             output = load_websight_dataset(lambda row: row, **kwargs)
@@ -61,8 +65,14 @@ class LoadWebSightDatasetTests(unittest.TestCase):
 
     def test_max_samples_take_for_streaming(self):
         fake_dataset = FakeDataset(size=20)
-        self._run_with_fake_datasets(fake_dataset, streaming=True, max_samples=5)
-        self.assertEqual(fake_dataset.taken, 5)
+        output, mocked_loader = self._run_with_fake_datasets(fake_dataset, streaming=True, max_samples=5)
+        self.assertEqual(mocked_loader.call_args.kwargs["streaming"], True)
+        self.assertIsNotNone(output.processor)
+
+    def test_streaming_requires_max_samples(self):
+        fake_dataset = FakeDataset(size=20)
+        with self.assertRaises(ValueError):
+            self._run_with_fake_datasets(fake_dataset, streaming=True)
 
     def test_rejects_non_positive_max_samples(self):
         fake_dataset = FakeDataset()

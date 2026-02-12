@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import islice
 from typing import Any
 
 DEFAULT_WEBSIGHT_DATASET = "HuggingFaceM4/WebSight"
@@ -26,9 +27,9 @@ def load_websight_dataset(
         **load_kwargs: Extra keyword arguments forwarded to ``datasets.load_dataset``.
 
     Returns:
-        A processed ``datasets.Dataset`` (or iterable dataset when ``streaming=True``).
+        A processed ``datasets.Dataset``.
     """
-    from datasets import load_dataset
+    from datasets import Dataset, load_dataset
 
     dataset = load_dataset(
         dataset_name,
@@ -37,16 +38,18 @@ def load_websight_dataset(
         **load_kwargs,
     )
 
-    if max_samples is not None:
-        if max_samples <= 0:
-            raise ValueError("max_samples must be a positive integer when provided")
-        if streaming:
-            dataset = dataset.take(max_samples)
-        else:
-            max_samples = min(max_samples, len(dataset))
-            dataset = dataset.select(range(max_samples))
+    if max_samples is not None and max_samples <= 0:
+        raise ValueError("max_samples must be a positive integer when provided")
 
     if streaming:
-        return dataset.map(processor)
+        if max_samples is None:
+            raise ValueError(
+                "max_samples is required when streaming=True so the result can be "
+                "materialized as a non-iterable dataset"
+            )
+        dataset = Dataset.from_list(list(islice(dataset, max_samples)))
+    elif max_samples is not None:
+        max_samples = min(max_samples, len(dataset))
+        dataset = dataset.select(range(max_samples))
 
     return dataset.map(processor)

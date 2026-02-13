@@ -134,6 +134,9 @@ def load_websight_dataset(
     if Path(cache_dir).exists():
         print(f"Loading cached dataset from {cache_dir}")
         ds = load_from_disk(cache_dir)
+        ds = ds.select(range(min(len(ds), max_samples)))
+        if len(ds) < max_samples:
+            print(f"Warning: cached dataset has only {len(ds)} samples, but max_samples={max_samples}")
     else:
         print("No cached dataset found, streaming from HuggingFace...")
         ds = download_websight_dataset(max_samples, max_html_chars, seed, cache_dir)
@@ -149,7 +152,7 @@ if __name__ == "__main__":
     args.add_argument("--max_samples", type=int, default=1000)
     max_samples = args.parse_args().max_samples
 
-
+    print(f"Downloading {max_samples} samples from the WebSight dataset...")
     ds = download_websight_dataset(max_samples=max_samples)
     print(f"Samples: {len(ds)}")
     print(f"Columns: {ds.column_names}")

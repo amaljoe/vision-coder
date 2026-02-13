@@ -23,6 +23,7 @@ import argparse
 import torch
 from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 from trl import GRPOConfig, GRPOTrainer
+from accelerate import Accelerator
 
 from vcoder import (
     format_reward,
@@ -71,16 +72,18 @@ def parse_args():
 def main():
     args = parse_args()
 
+    accelerator = Accelerator()
+
     # --- Dataset ---
-    print("Loading dataset...")
+    accelerator.print("Loading dataset...")
     train_dataset = load_websight_dataset(
         max_samples=args.max_samples,
         max_width=args.image_width,
     )
-    print(f"Dataset size: {len(train_dataset)}")
+    accelerator.print(f"Dataset size: {len(train_dataset)}")
 
     # --- Model & Processor ---
-    print(f"Loading model: {args.model_id}")
+    accelerator.print(f"Loading model: {args.model_id}")
     # max_pixels sized for image_width (assume up to 4:3 aspect ratio)
     max_pixels = args.image_width * int(args.image_width * 3 / 4)
     max_pixels = max(max_pixels // 784, 1) * 784  # align to 28*28
@@ -146,15 +149,16 @@ def main():
         train_dataset=train_dataset,
     )
 
-    print(f"\nbeta={trainer.beta}, num_generations={args.num_generations}")
-    print(f"batch_size={args.batch_size}, grad_accum={args.gradient_accumulation_steps}")
-    print(f"max_completion_length={args.max_completion_length}")
-    print(f"vllm_importance_sampling_correction=False")
-    print(f"\nStarting training...")
+    accelerator.print(f"\nbeta={trainer.beta}, num_generations={args.num_generations}")
+    accelerator.print(f"dataset_size={len(train_dataset)}")
+    accelerator.print(f"batch_size={args.batch_size}, grad_accum={args.gradient_accumulation_steps}")
+    accelerator.print(f"max_completion_length={args.max_completion_length}")
+    accelerator.print(f"vllm_importance_sampling_correction=False")
+    accelerator.print(f"\nStarting training...")
 
     trainer.train()
     trainer.save_model(args.output_dir)
-    print(f"\nTraining complete! Model saved to {args.output_dir}")
+    accelerator.print(f"\nTraining complete! Model saved to {args.output_dir}")
 
 
 if __name__ == "__main__":

@@ -7,9 +7,15 @@ from datasets import Dataset, load_dataset, load_from_disk
 from PIL import Image
 
 
+# SYSTEM_PROMPT = (
+#     "You are a UI-to-code assistant. Given a screenshot of a website, generate the complete HTML code "
+#     "with inline Tailwind CSS that reproduces the visual layout. Output only the HTML code wrapped in "
+#     "```html and ``` tags."
+# )
+
 SYSTEM_PROMPT = (
     "You are a UI-to-code assistant. Given a screenshot of a website, generate the complete HTML code "
-    "with inline Tailwind CSS that reproduces the visual layout. Output only the HTML code wrapped in "
+    "with inline CSS that reproduces the visual layout. Output only the HTML code wrapped in "
     "```html and ``` tags."
 )
 

@@ -26,6 +26,7 @@ from trl import GRPOConfig, GRPOTrainer
 from accelerate import Accelerator
 
 from vcoder import (
+    clip_visual_reward,
     format_reward,
     html_validity_reward,
     structural_similarity_reward,
@@ -65,6 +66,7 @@ def parse_args():
     p.add_argument("--logging_steps", type=int, default=1)
     p.add_argument("--save_steps", type=int, default=100)
     p.add_argument("--save_total_limit", type=int, default=3)
+    p.add_argument("--resume_from_checkpoint", type=str, default=None)
 
     return p.parse_args()
 
@@ -88,6 +90,7 @@ def main():
     max_pixels = args.image_width * int(args.image_width * 3 / 4)
     max_pixels = max(max_pixels // 784, 1) * 784  # align to 28*28
 
+    accelerator.print("Loading processor...")
     processor = AutoProcessor.from_pretrained(
         args.model_id,
         use_fast=True,
@@ -95,12 +98,13 @@ def main():
         # min_pixels=3136,
         # max_pixels=max_pixels,
     )
-
+    accelerator.print("Processor loaded. Loading model weights...")
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         args.model_id,
         attn_implementation="flash_attention_2",
         dtype=torch.bfloat16,
     )
+    accelerator.print("Model loaded.")
 
     # --- Training config ---
     training_args = GRPOConfig(
@@ -138,6 +142,7 @@ def main():
         format_reward,
         html_validity_reward,
         structural_similarity_reward,
+        clip_visual_reward,
     ]
 
     # --- Trainer ---
@@ -156,7 +161,7 @@ def main():
     accelerator.print(f"vllm_importance_sampling_correction=False")
     accelerator.print(f"\nStarting training...")
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(args.output_dir)
     accelerator.print(f"\nTraining complete! Model saved to {args.output_dir}")
 

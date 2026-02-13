@@ -16,12 +16,16 @@ _clip_model: Optional[CLIPModel] = None
 _clip_processor: Optional[CLIPProcessor] = None
 
 
-def _get_clip(device: str = "cuda"):
+def _get_clip(device: str = "cpu"):
     """Lazy-load and cache the CLIP model and processor."""
     global _clip_model, _clip_processor
     if _clip_model is None:
-        _clip_processor = CLIPProcessor.from_pretrained(CLIP_MODEL_NAME, use_fast=True)
-        _clip_model = CLIPModel.from_pretrained(CLIP_MODEL_NAME).to(device).eval()
+        _clip_processor = CLIPProcessor.from_pretrained(
+            CLIP_MODEL_NAME, use_fast=True, local_files_only=True,
+        )
+        _clip_model = CLIPModel.from_pretrained(
+            CLIP_MODEL_NAME, local_files_only=True,
+        ).to(device).eval()
     return _clip_model, _clip_processor
 
 
@@ -53,7 +57,7 @@ def compute_ssim(
 def compute_clip_similarity(
     img_a: Image.Image,
     img_b: Image.Image,
-    device: str = "cuda",
+    device: str = "cpu",
 ) -> float:
     """Compute CLIP image-image cosine similarity.
 

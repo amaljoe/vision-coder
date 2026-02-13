@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from datasets import Dataset, load_dataset, load_from_disk
+from PIL import Image
 
 
 SYSTEM_PROMPT = (
@@ -13,6 +14,27 @@ SYSTEM_PROMPT = (
 )
 
 DEFAULT_CACHE_DIR = os.path.expanduser("~/workspace/vision-coder/data/websight_cache")
+
+# Qwen3-VL: patch_size=16, merge_size=2 → factor=32
+# 128 * 28 * 28 = 100352 pixels → ~364 vision tokens
+DEFAULT_MAX_PIXELS = 100352
+DEFAULT_MIN_PIXELS = 3136  # 4 * 28 * 28
+
+
+def _resize_image(
+    image: Image.Image,
+    max_pixels: int = DEFAULT_MAX_PIXELS,
+    min_pixels: int = DEFAULT_MIN_PIXELS,
+) -> Image.Image:
+    """Resize image so total pixels <= max_pixels, preserving aspect ratio."""
+    image = image.convert("RGB")
+    w, h = image.size
+    if w * h <= max_pixels:
+        return image
+    scale = (max_pixels / (w * h)) ** 0.5
+    new_w = max(32, int(w * scale) // 32 * 32)  # align to 32 for Qwen3-VL
+    new_h = max(32, int(h * scale) // 32 * 32)
+    return image.resize((new_w, new_h), Image.LANCZOS)
 
 
 def _make_conversation(example: dict) -> dict:
@@ -32,7 +54,7 @@ def _make_conversation(example: dict) -> dict:
     ]
     return {
         "prompt": conversation,
-        "image": example["image"].convert("RGB"),
+        "image": _resize_image(example["image"]),
         "solution": example["text"],
     }
 
@@ -96,7 +118,10 @@ def load_websight_dataset(
     """
     if Path(cache_dir).exists():
         print(f"Loading cached dataset from {cache_dir}")
-        return load_from_disk(cache_dir)
+        ds = load_from_disk(cache_dir)
+        # Resize images that are still full-resolution from older caches
+        ds = ds.map(lambda ex: {"image": _resize_image(ex["image"])})
+        return ds
 
     print("No cached dataset found, streaming from HuggingFace...")
     return download_websight_dataset(max_samples, max_html_chars, seed, cache_dir)

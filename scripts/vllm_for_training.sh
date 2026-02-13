@@ -14,7 +14,6 @@ set -euo pipefail
 #   python test_train.py
 
 MODEL_ID="${MODEL_ID:-Qwen/Qwen3-VL-2B-Instruct}"
-SERVED_MODEL_NAME="${SERVED_MODEL_NAME:-Qwen3-VL-2B-Instruct}"
 HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8000}"
 GPU_MEMORY_UTILIZATION="${GPU_MEMORY_UTILIZATION:-0.90}"
@@ -24,18 +23,13 @@ TENSOR_PARALLEL_SIZE="${TENSOR_PARALLEL_SIZE:-1}"
 # Default to one GPU if caller didn't set CUDA_VISIBLE_DEVICES.
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
-# Avoid proxying localhost requests.
-unset ALL_PROXY all_proxy HTTP_PROXY http_proxy HTTPS_PROXY https_proxy || true
-
 echo "[vLLM] MODEL_ID=${MODEL_ID}"
-echo "[vLLM] SERVED_MODEL_NAME=${SERVED_MODEL_NAME}"
 echo "[vLLM] HOST=${HOST} PORT=${PORT}"
 echo "[vLLM] CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}"
 echo "[vLLM] TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE}"
 
-python -m vllm.entrypoints.openai.api_server \
+trl vllm-serve \
   --model "${MODEL_ID}" \
-  --served-model-name "${SERVED_MODEL_NAME}" \
   --tensor-parallel-size "${TENSOR_PARALLEL_SIZE}" \
   --gpu-memory-utilization "${GPU_MEMORY_UTILIZATION}" \
   --max-model-len "${MAX_MODEL_LEN}" \

@@ -25,14 +25,27 @@ def _resize_image(
     image: Image.Image,
     max_pixels: int = DEFAULT_MAX_PIXELS,
     min_pixels: int = DEFAULT_MIN_PIXELS,
+    max_width: int | None = None,
 ) -> Image.Image:
-    """Resize image so total pixels <= max_pixels, preserving aspect ratio."""
+    """Resize image to fit constraints, preserving aspect ratio.
+
+    If max_width is set, resizes so width <= max_width (takes priority over max_pixels).
+    Otherwise, resizes so total pixels <= max_pixels.
+    Dimensions are aligned to 32 for Qwen3-VL (patch_size=16, merge_size=2).
+    """
     image = image.convert("RGB")
     w, h = image.size
+
+    if max_width and w > max_width:
+        scale = max_width / w
+        new_w = max(32, int(w * scale) // 32 * 32)
+        new_h = max(32, int(h * scale) // 32 * 32)
+        return image.resize((new_w, new_h), Image.LANCZOS)
+
     if w * h <= max_pixels:
         return image
     scale = (max_pixels / (w * h)) ** 0.5
-    new_w = max(32, int(w * scale) // 32 * 32)  # align to 32 for Qwen3-VL
+    new_w = max(32, int(w * scale) // 32 * 32)
     new_h = max(32, int(h * scale) // 32 * 32)
     return image.resize((new_w, new_h), Image.LANCZOS)
 
@@ -104,6 +117,7 @@ def load_websight_dataset(
     max_html_chars: int = 3000,
     seed: int = 42,
     cache_dir: str = DEFAULT_CACHE_DIR,
+    max_width: int | None = 512,
 ) -> Dataset:
     """Load WebSight dataset from local cache, or stream from HuggingFace if not cached.
 
@@ -112,6 +126,7 @@ def load_websight_dataset(
         max_html_chars: Skip HTML longer than this (if downloading).
         seed: Random seed for shuffling (if downloading).
         cache_dir: Directory for the cached dataset.
+        max_width: Resize images so width <= this value. None to skip.
 
     Returns:
         A HuggingFace Dataset with columns: prompt, image, solution.
@@ -119,16 +134,23 @@ def load_websight_dataset(
     if Path(cache_dir).exists():
         print(f"Loading cached dataset from {cache_dir}")
         ds = load_from_disk(cache_dir)
-        # Resize images that are still full-resolution from older caches
-        ds = ds.map(lambda ex: {"image": _resize_image(ex["image"])})
-        return ds
+    else:
+        print("No cached dataset found, streaming from HuggingFace...")
+        ds = download_websight_dataset(max_samples, max_html_chars, seed, cache_dir)
 
-    print("No cached dataset found, streaming from HuggingFace...")
-    return download_websight_dataset(max_samples, max_html_chars, seed, cache_dir)
+    # Resize images (handles both fresh downloads and older full-res caches)
+    ds = ds.map(lambda ex: {"image": _resize_image(ex["image"], max_width=max_width)})
+    return ds
 
 
 if __name__ == "__main__":
-    ds = download_websight_dataset(max_samples=50)
+    import argparse
+    args = argparse.ArgumentParser(description="Test loading the WebSight dataset")
+    args.add_argument("--max_samples", type=int, default=1000)
+    max_samples = args.parse_args().max_samples
+
+
+    ds = download_websight_dataset(max_samples=max_samples)
     print(f"Samples: {len(ds)}")
     print(f"Columns: {ds.column_names}")
     print(f"Image: {ds[0]['image'].size}")

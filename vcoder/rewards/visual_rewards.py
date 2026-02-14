@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import io
+import logging
 from typing import Optional
 
 from PIL import Image
@@ -9,6 +10,8 @@ from PIL import Image
 from vcoder.rendering.browser_pool import BrowserPool
 from vcoder.utils.html_utils import extract_html_from_completion
 from vcoder.utils.image_utils import compute_clip_similarity, compute_ssim
+
+logger = logging.getLogger(__name__)
 
 
 async def _render_html(html: str, pool: BrowserPool) -> Image.Image | None:

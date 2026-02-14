@@ -91,6 +91,7 @@ def structural_similarity_reward(
         gt_classes = _get_css_classes(gt_html)
         class_sim = _class_overlap(pred_classes, gt_classes)
 
-        score = 0.6 * tag_sim + 0.4 * class_sim
+        # score = 0.6 * tag_sim + 0.4 * class_sim
+        score = tag_sim
         rewards.append(score)
     return rewards

@@ -33,6 +33,12 @@ from vcoder import (
 )
 from vcoder.data.websight import load_websight_dataset
 
+def boosted_clip_reward(completions, image, **kwargs):
+    """A simple wrapper around the CLIP reward that boosts it to be more comparable in scale to the other rewards."""
+    base_scores = clip_visual_reward(completions, image, **kwargs)
+    boosted_scores = [score * 3.0 for score in base_scores]
+    return boosted_scores
+
 
 def parse_args():
     p = argparse.ArgumentParser(description="GRPO training for Vision Coder")
@@ -142,7 +148,7 @@ def main():
         format_reward,
         html_validity_reward,
         structural_similarity_reward,
-        clip_visual_reward,
+        boosted_clip_reward,
     ]
 
     # --- Trainer ---

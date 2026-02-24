@@ -1,253 +1,170 @@
-# Image-Conditioned Code Generation using Reinforcement Learning with Verifiable Rewards (RLVR)
+# VisionCoder — RLVR for Screenshot-to-HTML Generation
 
-## 📌 Overview
+Fine-tuning a vision-language model with **Reinforcement Learning from Verifiable Rewards (RLVR)** to convert UI screenshots into clean HTML/CSS.
 
-This project explores whether **Reinforcement Learning with Verifiable
-Rewards (RLVR)** can improve **image-conditioned code generation**,
-specifically:
+> **Input:** UI screenshot &nbsp;→&nbsp; **Output:** HTML + CSS that visually reproduces it
 
-> **Input:** UI screenshot or PDF page\
-> **Output:** HTML + CSS that visually reproduces the input
+---
 
-Rather than relying purely on supervised fine-tuning (SFT), we train a
-**vision-language model (VLM)** using rewards computed from
-**automatically verifiable signals** such as rendering similarity and
-structural correctness.
+## Results
 
-------------------------------------------------------------------------
+Trained on 500 steps of GRPO with [HuggingFaceM4/WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight) (2 000 samples), evaluated on the [Design2Code](https://github.com/NoviScl/Design2Code) benchmark (484 held-out examples).
 
-## 🎯 Motivation
+| Metric | Qwen3-VL-2B (base) | **VCoder-GRPO-CLIP** | Δ |
+|---|---|---|---|
+| **Overall** | 0.232 | **0.788** | +240% |
+| Block-Match | 0.101 | **0.795** | +687% |
+| Text Match | 0.107 | **0.884** | +722% |
+| Position | 0.088 | **0.706** | +703% |
+| Color | 0.091 | **0.698** | +663% |
+| CLIP Similarity | 0.772 | **0.858** | +11% |
 
-Recent work shows RLVR significantly improves reasoning in text-only
-tasks (math, coding). However:
+The base model struggles to produce structured HTML in the correct format; a single epoch of GRPO training with rendering-based rewards closes most of the gap.
 
--   RLVR for **vision-conditioned generation** remains underexplored\
--   Practical demand for **UI/PDF → HTML/CSS** systems is growing\
--   These tasks require **visual understanding + structured generation**
+---
 
-This project investigates whether RLVR can:
+## Training Overview
 
-✅ Improve layout fidelity\
-✅ Reduce malformed HTML/CSS\
-✅ Encourage structured reasoning\
-✅ Work with minimal human annotation
+![Training Overview](assets/plots/overview.png)
 
-------------------------------------------------------------------------
+Key observations across 500 steps:
+- **Total reward** rises steadily from ~2.4 to ~5.0
+- **CLIP reward** (visual fidelity) climbs from near-zero to ~2.4 after 3× boosting
+- **Format + validity** rewards converge to near-perfect within ~100 steps, freeing the model to focus on visual quality
+- **Completion length** drops sharply (~1 000 → ~460 tokens) as the model learns to generate clean, minimal HTML
+- **Entropy** decreases monotonically, indicating a confident but not collapsed policy
 
-## 🧩 Problem Statement
+---
 
-We train a model that:
+## Reward Design
 
--   Accepts an **image** (UI mockup / PDF page)\
--   Generates **HTML + CSS**\
--   Receives rewards based on **verifiable similarity metrics**
+| Reward | Weight | Signal |
+|---|---|---|
+| `boosted_clip_reward` | 3× | CLIP image-image similarity between rendered HTML and reference screenshot |
+| `format_reward` | 1× | Presence of `<think>` + `<html>` structure |
+| `html_validity_reward` | 1× | HTML parses without critical errors |
+| `structural_similarity_reward` | 1× | DOM-level structural similarity to reference |
 
-**Goal:** Produce code that renders as close as possible to the input
-image.
+All rewards are computed without any human annotation. Rendering is done with a headless Playwright browser pool.
 
-------------------------------------------------------------------------
+---
 
-## 🧠 Proposed Approach
+## Detailed Training Curves
 
-### 1️⃣ Base Pipeline
+### Reward Signals
+![Reward Signals](assets/plots/rewards.png)
 
-1.  Input image → Vision-Language Model\
-2.  Model generates HTML + CSS\
-3.  Code is rendered (headless browser)\
-4.  Reward computed via:
-    -   Visual similarity
-    -   Structural validity
-    -   Layout consistency
+### Training Dynamics
+![Training Dynamics](assets/plots/training_dynamics.png)
 
-------------------------------------------------------------------------
+### Completion Statistics
+![Completions](assets/plots/completions.png)
 
-### 2️⃣ Reinforcement Learning with Verifiable Rewards
+---
 
-Instead of token-level supervision:
+## Architecture
 
--   Rewards derived from automatic checkers\
--   No human scoring required\
--   Encourages global correctness rather than token matching
-
-------------------------------------------------------------------------
-
-## 🏆 Reward Design
-
-Potential reward components:
-
-### ✅ Visual Fidelity
-
--   SSIM / LPIPS / Pixel similarity\
--   Layout alignment
-
-### ✅ HTML/CSS Validity
-
--   Syntax correctness\
--   Proper tag nesting
-
-### ✅ Structural Accuracy
-
--   DOM tree similarity\
--   Layout block consistency\
--   Reading order correctness
-
-### ✅ PDF-Specific Constraints
-
--   Table row/column preservation\
--   Bounding box alignment
-
-------------------------------------------------------------------------
-
-## 🧱 Candidate Base Models
-
--   Qwen 3 VL Thinking 4B\
--   Qwen 3 VL Instruct 8B\
--   Unsloth Devstral 24B\
--   DeepSeek VL2 27B
-
-Selection criteria:
-
-✔ Strong multimodal understanding\
-✔ Efficient RL fine-tuning capability
-
-------------------------------------------------------------------------
-
-## 📚 Datasets
-
-### 🔹 HuggingFaceM4/WebSight
-
-UI screenshots ↔ HTML/CSS pairs
-
-### 🔹 KingstarOMEGA/HTML-CSS-UI
-
-HTML/CSS (renderable to UI)
-
-### 🔹 Custom Dataset (Optional)
-
-Generated via web scraping or rendering pipelines
-
-**Note:** RL training only requires images (HTML optional).
-
-------------------------------------------------------------------------
-
-## 🧪 Baselines
-
-1.  Base model (no tuning)\
-2.  Supervised Fine-Tuning (SFT)\
-3.  RLVR-trained model
-
-Evaluation:
-
--   Rendering similarity\
--   HTML validity\
--   Structural correctness
-
-------------------------------------------------------------------------
-
-## 📏 Evaluation Metrics
-
-### 🎨 Visual Metrics
-
--   SSIM\
--   LPIPS\
--   Pixel accuracy
-
-### 🧱 Structural Metrics
-
--   DOM similarity\
--   Tag validity rate
-
-### 📐 Layout Metrics
-
--   Block detection accuracy\
--   Reading order consistency
-
-------------------------------------------------------------------------
-
-## 🖥 Compute Resources
-
-Training performed on:
-
--   **4 × NVIDIA A100 (80GB)**
-
-Supports:
-
-✔ RL fine-tuning\
-✔ Rendering-based reward loops\
-✔ Large VLM experimentation
-
-------------------------------------------------------------------------
-
-## ⚙️ Training Strategy
-
-### Phase 1 --- (Optional) SFT
-
-Train on UI ↔ HTML/CSS pairs
-
-### Phase 2 --- RLVR
-
-Reward-based optimization using rendering similarity
-
-------------------------------------------------------------------------
-
-## 🚀 Setup
-
-``` bash
-git clone https://github.com/<repo>/rlvr-ui-codegen.git
-cd rlvr-ui-codegen
-pip install -r requirements.txt
+```
+vcoder/
+├── pipelines/training.py       # GRPO training entry point (accelerate launch)
+├── rewards/
+│   ├── visual_rewards.py       # CLIP + SSIM rewards via async Playwright rendering
+│   ├── structural_rewards.py   # DOM tree similarity reward
+│   ├── validity_rewards.py     # HTML validity reward
+│   └── format_rewards.py       # Format / thinking-tag reward
+├── rendering/
+│   ├── html_renderer.py        # Headless browser rendering
+│   └── browser_pool.py         # Async Playwright browser pool
+├── data/websight.py             # WebSight dataset loader
+├── eval/
+│   ├── generate_predictions.py # Batch inference via VLLM server
+│   └── extract_testset.py      # Extract Design2Code parquet → PNG/HTML
+└── demo/inference.py            # Single-image inference
+experiments/
+└── plot_run.py                  # Plot training curves from trainer_state.json
 ```
 
-------------------------------------------------------------------------
+---
 
-## ▶️ Usage
+## Setup
 
-``` bash
-python generate.py --model checkpoints/rlvr_model --image samples/ui_example.png
+```bash
+# Install package
+pip install -e . --no-deps
+
+# Install Playwright for rendering
+playwright install chromium
 ```
 
-Output:
+---
 
-    output/
-     ├── index.html
-     ├── styles.css
-     └── render.png
+## Training
 
-------------------------------------------------------------------------
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
+    --config_file configs/accelerate_4gpu.yaml \
+    vcoder/pipelines/training.py \
+    --model_id Qwen/Qwen3-VL-2B-Instruct \
+    --output_dir outputs/vcoder-grpo-clip \
+    --max_samples 2000 \
+    --num_train_epochs 1 \
+    --batch_size 4 \
+    --num_generations 8 \
+    --max_completion_length 2048
+```
 
-## 🛣 Roadmap
+---
 
--   [ ] Dataset curation\
--   [ ] SFT baseline\
--   [ ] Reward design\
--   [ ] RLVR training\
--   [ ] Evaluation framework\
--   [ ] Ablation studies
+## Evaluation
 
-------------------------------------------------------------------------
+**1. Start VLLM inference servers**
+```bash
+# Base model
+CUDA_VISIBLE_DEVICES=0 python3 -m vllm.entrypoints.openai.api_server \
+    --model Qwen/Qwen3-VL-2B-Instruct --port 8000 \
+    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
 
-## 👥 Team
+# Fine-tuned model
+CUDA_VISIBLE_DEVICES=1 python3 -m vllm.entrypoints.openai.api_server \
+    --model outputs/vcoder-grpo-clip/checkpoint-500 --port 8001 \
+    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
+```
 
-**Amal Joe**\
-**Job J**
+**2. Generate predictions**
+```bash
+python3 vcoder/eval/generate_predictions.py \
+    --model vcoder-grpo-clip \
+    --testset_dir ../Design2Code/testset_final_extracted
+```
 
-------------------------------------------------------------------------
+**3. Run Design2Code eval**
+```bash
+cd ../Design2Code/Design2Code
+python3 metrics/multi_processing_eval.py
+```
 
-## 📖 References
+---
 
-DeepSeek-R1\
-DeepSeekMath / DeepSeekMath-V2\
-Infinity Parser (LayoutRL)\
-Efficient Medical VIE via RL\
-Pix2Struct\
-Nougat
+## Plot Training Curves
 
-------------------------------------------------------------------------
+```bash
+python3 experiments/plot_run.py                          # latest checkpoint
+python3 experiments/plot_run.py --run_dir outputs/vcoder-grpo-clip --checkpoint 300
+```
 
-## 💡 Key Research Questions
+Plots saved to `<run_dir>/plots/`.
 
--   Does RLVR improve visual layout fidelity?\
--   Can rewards replace heavy supervision?\
--   Does RLVR reduce hallucinated elements?\
--   How stable is rendering-based RL training?
+---
 
+## Model
+
+- **Base model:** [Qwen/Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct)
+- **Training:** GRPO (TRL), 4× A40 GPUs, ~500 steps, ~7 hours
+- **Dataset:** 2 000 samples from [HuggingFaceM4/WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight)
+- **Benchmark:** [Design2Code](https://github.com/NoviScl/Design2Code) — 484 held-out screenshot→HTML pairs
+
+---
+
+## Team
+
+Amal Joe · Job J

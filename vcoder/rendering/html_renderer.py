@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import io
+import threading
 
 from PIL import Image
 
 from vcoder.rendering.browser_pool import BrowserPool
+
+_sync_loop: asyncio.AbstractEventLoop | None = None
+_sync_loop_lock = threading.Lock()
 
 
 def _blank_white_image(width: int = 512, height: int = 512) -> Image.Image:
@@ -22,21 +26,33 @@ async def _render_html_async(html: str) -> Image.Image:
     return Image.open(io.BytesIO(png_bytes)).convert("RGB")
 
 
+def _get_sync_loop() -> asyncio.AbstractEventLoop:
+    """Return a process-wide event loop running on a daemon thread."""
+    global _sync_loop
+    with _sync_loop_lock:
+        if _sync_loop is not None and _sync_loop.is_running():
+            return _sync_loop
+
+        loop = asyncio.new_event_loop()
+
+        def _runner() -> None:
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        thread = threading.Thread(target=_runner, name="vcoder-render-loop", daemon=True)
+        thread.start()
+        _sync_loop = loop
+        return loop
+
+
 def render_html_to_image(html: str) -> Image.Image:
     """Synchronous wrapper: render an HTML string to a PIL Image.
 
     Returns a blank white image on failure.
     """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If called from within an existing event loop (e.g. Jupyter),
-            # use nest_asyncio or run in a thread
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(asyncio.run, _render_html_async(html))
-                return future.result(timeout=15)
-        else:
-            return loop.run_until_complete(_render_html_async(html))
+        loop = _get_sync_loop()
+        future = asyncio.run_coroutine_threadsafe(_render_html_async(html), loop)
+        return future.result(timeout=20)
     except Exception:
         return _blank_white_image()

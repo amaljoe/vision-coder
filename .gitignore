@@ -212,4 +212,4 @@ notebooks/wandb/
 
 !vcoder/data/
 !vcoder/data/*.py
-assets/synth_samples_5/
+assets/synth_samples/

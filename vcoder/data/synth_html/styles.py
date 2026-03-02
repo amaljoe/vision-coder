@@ -40,7 +40,8 @@ def _style_tokens(rng: random.Random) -> dict[str, int | str]:
             ]
         ),
         "base_font_size": rng.randint(12, 16),
-        "page_width": rng.randint(1080, 1360),
+        # Keep page width within the default render viewport (1280px) including margins.
+        "page_width": rng.randint(980, 1180),
         "page_margin": rng.randint(10, 24),
         "page_pad_v": rng.randint(14, 24),
         "page_pad_h": rng.randint(14, 26),

@@ -13,6 +13,7 @@ Launch example:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 from dataclasses import dataclass
 
 import torch
@@ -24,6 +25,9 @@ from transformers import (
 )
 
 from vcoder.data.synth_html import load_synthetic_sft_dataset
+
+
+ATTN_BACKEND_CHOICES = ("auto", "flash_attention_2", "sdpa", "eager")
 
 
 @dataclass
@@ -112,6 +116,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--weight_decay", type=float, default=0.0)
     p.add_argument("--warmup_ratio", type=float, default=0.03)
     p.add_argument("--max_length", type=int, default=4096)
+    p.add_argument("--attn_backend", choices=ATTN_BACKEND_CHOICES, default="auto")
 
     # LoRA
     p.add_argument("--lora_r", type=int, default=16)
@@ -128,6 +133,51 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--eval_steps", type=int, default=100)
 
     return p.parse_args()
+
+
+def _has_flash_attn() -> bool:
+    return importlib.util.find_spec("flash_attn") is not None
+
+
+def _resolve_attn_backend(requested: str, has_cuda: bool) -> str | None:
+    if not has_cuda:
+        return None
+    if requested == "auto":
+        return "flash_attention_2" if _has_flash_attn() else "sdpa"
+    return requested
+
+
+def _load_model_with_attn_fallback(
+    model_id: str,
+    dtype: torch.dtype,
+    attn_backend: str | None,
+) -> tuple[Qwen3VLForConditionalGeneration, str | None]:
+    model_kwargs: dict[str, object] = {"dtype": dtype}
+    if attn_backend is not None:
+        model_kwargs["attn_implementation"] = attn_backend
+        print(f"Loading model with attention backend: {attn_backend}")
+    else:
+        print("Loading model with default CPU attention backend")
+
+    try:
+        model = Qwen3VLForConditionalGeneration.from_pretrained(model_id, **model_kwargs)
+        return model, attn_backend
+    except ImportError as exc:
+        msg = str(exc).lower()
+        needs_fallback = attn_backend == "flash_attention_2" and (
+            "flashattention2" in msg or "flash_attn" in msg
+        )
+        if not needs_fallback:
+            raise
+
+        print(
+            "Warning: flash_attention_2 requested but flash_attn is unavailable. "
+            "Retrying with sdpa backend. "
+            "Install flash-attn or pass --attn_backend sdpa to silence this warning."
+        )
+        retry_kwargs = {"dtype": dtype, "attn_implementation": "sdpa"}
+        model = Qwen3VLForConditionalGeneration.from_pretrained(model_id, **retry_kwargs)
+        return model, "sdpa"
 
 
 def main() -> None:
@@ -156,16 +206,27 @@ def main() -> None:
     print(f"Train samples: {len(train_dataset)}")
     print(f"Eval samples: {len(eval_dataset) if eval_dataset is not None else 0}")
 
-    torch_dtype = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-    model_kwargs = {"torch_dtype": torch_dtype}
-    if torch.cuda.is_available():
-        model_kwargs["attn_implementation"] = "flash_attention_2"
+    has_cuda = torch.cuda.is_available()
+    model_dtype = torch.bfloat16 if has_cuda else torch.float32
+    resolved_attn_backend = _resolve_attn_backend(args.attn_backend, has_cuda)
+    if args.attn_backend == "flash_attention_2" and has_cuda and not _has_flash_attn():
+        print(
+            "Warning: --attn_backend flash_attention_2 was requested, but flash_attn is not installed. "
+            "The loader will retry with sdpa if flash2 initialization fails."
+        )
+    print(f"Requested attention backend: {args.attn_backend}")
+    print(f"Resolved attention backend: {resolved_attn_backend or 'cpu-default'}")
 
     processor = AutoProcessor.from_pretrained(args.model_id, use_fast=True)
     if hasattr(processor, "tokenizer") and processor.tokenizer is not None:
         processor.tokenizer.padding_side = "right"
 
-    model = Qwen3VLForConditionalGeneration.from_pretrained(args.model_id, **model_kwargs)
+    model, loaded_attn_backend = _load_model_with_attn_fallback(
+        model_id=args.model_id,
+        dtype=model_dtype,
+        attn_backend=resolved_attn_backend,
+    )
+    print(f"Loaded model attention backend: {loaded_attn_backend or 'cpu-default'}")
 
     if not args.no_lora:
         try:

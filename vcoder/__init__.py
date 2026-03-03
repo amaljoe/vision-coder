@@ -6,6 +6,7 @@ from vcoder.rewards import (
     structural_similarity_reward,
 )
 from vcoder.data.websight import load_websight_dataset
+from vcoder.data.synth_html import load_synthetic_sft_dataset
 
 __all__ = [
     "clip_visual_reward",
@@ -14,4 +15,5 @@ __all__ = [
     "visual_fidelity_reward",
     "structural_similarity_reward",
     "load_websight_dataset",
+    "load_synthetic_sft_dataset",
 ]

@@ -113,6 +113,26 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
     --max_completion_length 2048
 ```
 
+### Synthetic SFT
+
+Generate synthetic samples first:
+
+```bash
+python -m vcoder.data.generate_synthetic_html --num_samples 200 --output_dir assets/synth_samples
+```
+
+Then run supervised fine-tuning on those `render.png` + `source.html` pairs:
+
+```bash
+python -m vcoder.pipelines.sft_training \
+    --dataset_dir assets/synth_samples \
+    --output_dir outputs/vcoder-sft-synth \
+    --max_samples 200 \
+    --num_train_epochs 1 \
+    --per_device_batch_size 1 \
+    --gradient_accumulation_steps 8
+```
+
 ---
 
 ## Evaluation

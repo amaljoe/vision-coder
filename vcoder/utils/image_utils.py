@@ -24,7 +24,7 @@ def _get_clip(device: str = "cpu"):
             CLIP_MODEL_NAME, use_fast=True, local_files_only=True,
         )
         _clip_model = CLIPModel.from_pretrained(
-            CLIP_MODEL_NAME, local_files_only=True,
+            CLIP_MODEL_NAME, local_files_only=True, low_cpu_mem_usage=False,
         ).to(device).eval()
     return _clip_model, _clip_processor
 

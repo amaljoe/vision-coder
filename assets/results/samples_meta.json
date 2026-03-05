@@ -1,0 +1,23 @@
+[
+  {
+    "rank": 1,
+    "testset_idx": "3",
+    "base_clip": 0.8278,
+    "finetuned_clip": 0.9474,
+    "delta": 0.1197
+  },
+  {
+    "rank": 2,
+    "testset_idx": "7",
+    "base_clip": 0.7849,
+    "finetuned_clip": 0.8489,
+    "delta": 0.064
+  },
+  {
+    "rank": 3,
+    "testset_idx": "5",
+    "base_clip": 0.5567,
+    "finetuned_clip": 0.7916,
+    "delta": 0.2349
+  }
+]

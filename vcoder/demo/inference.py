@@ -3,7 +3,14 @@
 import asyncio
 import base64
 import io
+import os
 from dataclasses import dataclass
+
+# Playwright browsers installed outside the default cache location
+os.environ.setdefault(
+    "PLAYWRIGHT_BROWSERS_PATH",
+    os.path.expanduser("~/playwright-browsers"),
+)
 
 import requests
 import streamlit as st
@@ -41,7 +48,7 @@ DEFAULT_CONFIGS = [
     ModelConfig(),
     ModelConfig(
         port=8001, 
-        model_name="outputs/vcoder-grpo-clip/checkpoint-500/", 
+        model_name="/home/compiling-ganesh/24m0797/workspace/vision-coder/outputs/vcoder-grpo-clip/checkpoint-500",
         user_prompt="Generate the HTML code that reproduces this website screenshot.",
         system_prompt="You are a UI-to-code assistant. Given a screenshot of a website, generate the complete HTML code with inline CSS that reproduces the visual layout. Output only the HTML code wrapped in ```html and ``` tags."
     ),
@@ -136,7 +143,9 @@ st.title("vLLM Inference Comparison")
 st.subheader("Reference Image")
 uploaded = st.file_uploader("Upload a reference screenshot", type=["png", "jpg", "jpeg", "webp"])
 if uploaded:
-    ref_image = Image.open(uploaded).convert("RGB")
+    st.session_state["ref_image"] = Image.open(uploaded).convert("RGB")
+ref_image = st.session_state.get("ref_image")
+if ref_image:
     st.image(ref_image, width=400)
 
 # --- Model config ---

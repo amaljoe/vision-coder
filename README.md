@@ -62,6 +62,47 @@ All rewards are computed without any human annotation. Rendering is done with a 
 
 ---
 
+## Qualitative Samples
+
+Three examples from the Design2Code testset. Each row: reference screenshot → base model render → VCoder-GRPO-CLIP render.
+
+### Sample 1 (testset idx 3) — CLIP: base 0.828 → ft **0.947** (+0.12)
+
+| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
+|:---:|:---:|:---:|
+| ![](assets/results/sample_1/reference.png) | ![](assets/results/sample_1/base_rendered.png) | ![](assets/results/sample_1/finetuned_rendered.png) |
+
+### Sample 2 (testset idx 7) — CLIP: base 0.785 → ft **0.849** (+0.06)
+
+| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
+|:---:|:---:|:---:|
+| ![](assets/results/sample_2/reference.png) | ![](assets/results/sample_2/base_rendered.png) | ![](assets/results/sample_2/finetuned_rendered.png) |
+
+### Sample 3 (testset idx 5) — CLIP: base 0.557 → ft **0.792** (+0.23)
+
+| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
+|:---:|:---:|:---:|
+| ![](assets/results/sample_3/reference.png) | ![](assets/results/sample_3/base_rendered.png) | ![](assets/results/sample_3/finetuned_rendered.png) |
+
+#### Per-sample CLIP Similarity (10 testset images)
+
+| idx | Base | VCoder-GRPO-CLIP | Δ |
+|---|---|---|---|
+| 0 | 0.525 | 0.542 | +0.018 |
+| 1 | 0.547 | 0.788 | +0.241 |
+| 2 | 0.380 | 0.369 | −0.011 |
+| **3** | **0.828** | **0.947** | **+0.120** |
+| 4 | 0.725 | 0.760 | +0.035 |
+| **5** | **0.557** | **0.792** | **+0.235** |
+| 6 | 0.789 | 0.633 | −0.156 |
+| **7** | **0.785** | **0.849** | **+0.064** |
+| 8 | 0.428 | 0.499 | +0.072 |
+| 9 | 0.754 | 0.752 | −0.001 |
+
+Bold rows = shown above. Average across 10 samples: base 0.632 → ft **0.693** (+0.061).
+
+---
+
 ## Architecture
 
 ```

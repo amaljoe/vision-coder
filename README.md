@@ -6,9 +6,42 @@ Fine-tuning a vision-language model with **Reinforcement Learning from Verifiabl
 
 ---
 
+## Models
+
+| Model | HuggingFace | Description |
+|---|---|---|
+| VisionCoder-SFT | [amaljoe88/vcoder-sft](https://huggingface.co/amaljoe88/vcoder-sft) | Qwen3-VL-2B fine-tuned with supervised learning on WebSight |
+| VisionCoder-RL | [amaljoe88/vcoder-rl](https://huggingface.co/amaljoe88/vcoder-rl) | Qwen3-VL-2B fine-tuned with GRPO RL from base |
+| VisionCoder-SFT+RL | [amaljoe88/vcoder-sft-rl](https://huggingface.co/amaljoe88/vcoder-sft-rl) | Qwen3-VL-2B SFT warm-start then GRPO RL (best) |
+
+All models are based on [Qwen/Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) and trained on [HuggingFaceM4/WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight).
+
+---
+
 ## Results
 
-Trained on 500 steps of GRPO with [HuggingFaceM4/WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight) (2 000 samples), evaluated on the [Design2Code](https://github.com/NoviScl/Design2Code) benchmark (484 held-out examples).
+### WebSight Holdout Evaluation (100 samples, vLLM + async inference)
+
+Evaluated on 100 held-out WebSight samples using async vLLM inference (64 concurrent requests). Metrics computed with Playwright rendering + CLIP similarity.
+
+| Model | Format | Validity | Structural | CLIP | **Total** |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B (base) | 0.7225 | 0.6220 | 0.3710 | 0.4827 | 3.164 |
+| [VisionCoder-SFT](https://huggingface.co/amaljoe88/vcoder-sft) | 1.0000 | 0.9890 | 0.8154 | 0.7497 | 5.053 |
+| [VisionCoder-RL](https://huggingface.co/amaljoe88/vcoder-rl) | 1.0000 | 0.9840 | 0.7092 | 0.7564 | 4.963 |
+| **[VisionCoder-SFT+RL](https://huggingface.co/amaljoe88/vcoder-sft-rl)** | **1.0000** | **0.9880** | **0.8176** | **0.7531** | **5.065** |
+
+**Total** = format + validity + structural + 3 × CLIP
+
+Key observations:
+- All fine-tuned models reach near-perfect format/validity (≥0.98), up from base's 0.72/0.62
+- **SFT+RL** achieves the best total score, combining SFT's strong structural learning with RL's visual fine-tuning
+- **RL-only** lags SFT by ~0.11 on structural similarity — warm-starting from SFT before RL is consistently better
+- CLIP visual fidelity saturates around 0.75 across all trained variants
+
+### Design2Code Benchmark (484 held-out examples)
+
+Evaluated on the [Design2Code](https://github.com/NoviScl/Design2Code) benchmark.
 
 | Metric | Qwen3-VL-2B (base) | **VCoder-GRPO-CLIP** | Δ |
 |---|---|---|---|
@@ -19,19 +52,25 @@ Trained on 500 steps of GRPO with [HuggingFaceM4/WebSight](https://huggingface.c
 | Color | 0.091 | **0.698** | +663% |
 | CLIP Similarity | 0.772 | **0.858** | +11% |
 
-The base model struggles to produce structured HTML in the correct format; a single epoch of GRPO training with rendering-based rewards closes most of the gap.
-
 ---
 
 ## Training Overview
 
 ![Training Overview](assets/plots/overview.png)
 
-Key observations across 500 steps:
-- **Total reward** rises steadily from ~2.4 to ~5.0
-- **CLIP reward** (visual fidelity) climbs from near-zero to ~2.4 after 3× boosting
-- **Format + validity** rewards converge to near-perfect within ~100 steps, freeing the model to focus on visual quality
-- **Completion length** drops sharply (~1 000 → ~460 tokens) as the model learns to generate clean, minimal HTML
+### Training Pipeline
+
+Three variants were trained in sequence:
+
+1. **SFT** — 250 steps of supervised fine-tuning on WebSight (loss 0.25 → 0.091, 97% token accuracy)
+2. **RL** — 1 000 steps of GRPO starting from the base model (reward 2.0 → 5.0)
+3. **SFT+RL** — 1 000 steps of GRPO starting from the SFT checkpoint (reward 5.2 → 5.3, faster convergence)
+
+Key observations from RL training:
+- **Total reward** rises from ~2.4 to ~5.0 (RL from base) / starts at 5.2 and stabilises ~5.3 (SFT+RL)
+- **CLIP reward** climbs from near-zero to ~2.4 after 3× boosting
+- **Format + validity** rewards converge to near-perfect within ~100 steps
+- **Completion length** drops sharply (~1 000 → ~460 tokens) as the model learns cleaner HTML
 - **Entropy** decreases monotonically, indicating a confident but not collapsed policy
 
 ---
@@ -66,7 +105,9 @@ All rewards are computed without any human annotation. Rendering is done with a 
 
 ```
 vcoder/
-├── pipelines/training.py       # GRPO training entry point (accelerate launch)
+├── pipelines/
+│   ├── training.py         # GRPO RL training entry point (accelerate launch)
+│   └── sft_training.py     # SFT training entry point
 ├── rewards/
 │   ├── visual_rewards.py       # CLIP + SSIM rewards via async Playwright rendering
 │   ├── structural_rewards.py   # DOM tree similarity reward
@@ -77,9 +118,11 @@ vcoder/
 │   └── browser_pool.py         # Async Playwright browser pool
 ├── data/websight.py             # WebSight dataset loader
 ├── eval/
-│   ├── generate_predictions.py # Batch inference via VLLM server
-│   └── extract_testset.py      # Extract Design2Code parquet → PNG/HTML
-└── demo/inference.py            # Single-image inference
+│   ├── eval_vllm.py            # vLLM async batched evaluation (64 concurrent)
+│   └── eval_standalone.py      # Single-GPU sequential evaluation
+└── utils/
+    ├── image_utils.py          # CLIP similarity utilities
+    └── html_utils.py           # HTML extraction helpers
 experiments/
 └── plot_run.py                  # Plot training curves from trainer_state.json
 ```
@@ -100,47 +143,57 @@ playwright install chromium
 
 ## Training
 
+### SFT
+
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
-    --config_file configs/accelerate_4gpu.yaml \
+CUDA_VISIBLE_DEVICES=0,1 accelerate launch \
+    --config_file configs/accelerate_2gpu.yaml \
+    vcoder/pipelines/sft_training.py \
+    --model_id Qwen/Qwen3-VL-2B-Instruct \
+    --output_dir outputs/vcoder-sft \
+    --max_samples 2000
+```
+
+### GRPO RL (from base or SFT checkpoint)
+
+```bash
+# RL from base
+CUDA_VISIBLE_DEVICES=0,1 accelerate launch \
+    --config_file configs/accelerate_2gpu.yaml \
     vcoder/pipelines/training.py \
     --model_id Qwen/Qwen3-VL-2B-Instruct \
-    --output_dir outputs/vcoder-grpo-clip \
-    --max_samples 2000 \
-    --num_train_epochs 1 \
-    --batch_size 4 \
-    --num_generations 8 \
-    --max_completion_length 2048
+    --output_dir outputs/vcoder-rl
+
+# SFT+RL (warm-start from SFT)
+CUDA_VISIBLE_DEVICES=0,1 accelerate launch \
+    --config_file configs/accelerate_2gpu.yaml \
+    vcoder/pipelines/training.py \
+    --model_id outputs/vcoder-sft/checkpoint-200 \
+    --output_dir outputs/vcoder-sft-rl
 ```
 
 ---
 
 ## Evaluation
 
-**1. Start VLLM inference servers**
-```bash
-# Base model
-CUDA_VISIBLE_DEVICES=0 python3 -m vllm.entrypoints.openai.api_server \
-    --model Qwen/Qwen3-VL-2B-Instruct --port 8000 \
-    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
+Start vLLM servers (one per GPU), then run async batched eval:
 
-# Fine-tuned model
-CUDA_VISIBLE_DEVICES=1 python3 -m vllm.entrypoints.openai.api_server \
-    --model outputs/vcoder-grpo-clip/checkpoint-500 --port 8001 \
-    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
-```
-
-**2. Generate predictions**
 ```bash
-python3 vcoder/eval/generate_predictions.py \
-    --model vcoder-grpo-clip \
-    --testset_dir ../Design2Code/testset_final_extracted
-```
+# Start servers
+CUDA_VISIBLE_DEVICES=0 python -m vllm.entrypoints.openai.api_server \
+    --model amaljoe88/vcoder-sft --served-model-name sft --port 8000 \
+    --max-model-len 4096 --dtype bfloat16
 
-**3. Run Design2Code eval**
-```bash
-cd ../Design2Code/Design2Code
-python3 metrics/multi_processing_eval.py
+CUDA_VISIBLE_DEVICES=1 python -m vllm.entrypoints.openai.api_server \
+    --model amaljoe88/vcoder-sft-rl --served-model-name sft_rl --port 8001 \
+    --max-model-len 4096 --dtype bfloat16
+
+# Run evaluation (64 concurrent requests)
+python vcoder/eval/eval_vllm.py \
+    --servers sft:localhost:8000 sft_rl:localhost:8001 \
+    --num_samples 100 \
+    --concurrency 64 \
+    --output_json outputs/eval_results.json
 ```
 
 ---
@@ -149,19 +202,20 @@ python3 metrics/multi_processing_eval.py
 
 ```bash
 python3 experiments/plot_run.py                          # latest checkpoint
-python3 experiments/plot_run.py --run_dir outputs/vcoder-grpo-clip --checkpoint 300
+python3 experiments/plot_run.py --run_dir outputs/vcoder-rl --checkpoint 1000
 ```
 
 Plots saved to `<run_dir>/plots/`.
 
 ---
 
-## Model
+## Setup Details
 
 - **Base model:** [Qwen/Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct)
-- **Training:** GRPO (TRL), 4× A40 GPUs, ~500 steps, ~7 hours
+- **SFT training:** TRL SFTTrainer, 2× A100 80GB GPUs, ~250 steps
+- **RL training:** TRL GRPOTrainer, 2× A100 80GB GPUs, 1 000 steps each (~2 hours/run)
 - **Dataset:** 2 000 samples from [HuggingFaceM4/WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight)
-- **Benchmark:** [Design2Code](https://github.com/NoviScl/Design2Code) — 484 held-out screenshot→HTML pairs
+- **Evaluation:** 100 held-out WebSight samples + [Design2Code](https://github.com/NoviScl/Design2Code) benchmark
 
 ---
 

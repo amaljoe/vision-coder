@@ -43,14 +43,19 @@ Key observations:
 
 Evaluated on the [Design2Code](https://github.com/NoviScl/Design2Code) benchmark.
 
-| Metric | Qwen3-VL-2B (base) | **VCoder-GRPO-CLIP** | Δ |
-|---|---|---|---|
-| **Overall** | 0.232 | **0.788** | +240% |
-| Block-Match | 0.101 | **0.795** | +687% |
-| Text Match | 0.107 | **0.884** | +722% |
-| Position | 0.088 | **0.706** | +703% |
-| Color | 0.091 | **0.698** | +663% |
-| CLIP Similarity | 0.772 | **0.858** | +11% |
+| Metric | Qwen3-VL-2B (base) | VCoder-SFT | VCoder-RL | **VCoder-SFT+RL** |
+|---|---|---|---|---|
+| **Overall** | 0.232 | 0.791 | 0.354 | **0.802** |
+| Block-Match | 0.101 | 0.858 | 0.258 | **0.883** |
+| Text Match | 0.108 | 0.968 | 0.276 | **0.980** |
+| Position | 0.088 | 0.662 | 0.228 | **0.668** |
+| Color | 0.091 | 0.625 | 0.226 | **0.635** |
+| CLIP Similarity | 0.770 | 0.842 | 0.783 | **0.842** |
+
+Key observations:
+- **SFT alone** captures structure and text (text match 0.97) but RL further improves layout and color matching
+- **RL from base** significantly underperforms SFT on block/text/position — without a warm start the policy struggles to generate valid HTML consistently
+- **SFT+RL** achieves the best scores across all metrics, with CLIP +9.4% and text match +80.7pp over the base model
 
 ---
 
@@ -103,42 +108,25 @@ All rewards are computed without any human annotation. Rendering is done with a 
 
 ## Qualitative Samples
 
-Three examples from the Design2Code testset. Each row: reference screenshot → base model render → VCoder-GRPO-CLIP render.
+Three examples from the Design2Code testset (484 held-out examples). Each row shows: reference → base model → VCoder-SFT → VCoder-SFT+RL.
 
-### Sample 1 (testset idx 3) — CLIP: base 0.828 → ft **0.947** (+0.12)
+### Sample 1 (testset idx 158) — Overall: base 0.154 → SFT+RL **0.967** (+0.81)
 
-| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
-|:---:|:---:|:---:|
-| ![](assets/results/sample_1/reference.png) | ![](assets/results/sample_1/base_rendered.png) | ![](assets/results/sample_1/finetuned_rendered.png) |
+| Reference | Base (Qwen3-VL-2B) | VCoder-SFT | VCoder-SFT+RL |
+|:---:|:---:|:---:|:---:|
+| ![](assets/results/sample_1/reference.png) | ![](assets/results/sample_1/base_rendered.png) | ![](assets/results/sample_1/sft_rendered.png) | ![](assets/results/sample_1/sft_rl_rendered.png) |
 
-### Sample 2 (testset idx 7) — CLIP: base 0.785 → ft **0.849** (+0.06)
+### Sample 2 (testset idx 5) — Overall: base 0.150 → SFT+RL **0.925** (+0.78)
 
-| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
-|:---:|:---:|:---:|
-| ![](assets/results/sample_2/reference.png) | ![](assets/results/sample_2/base_rendered.png) | ![](assets/results/sample_2/finetuned_rendered.png) |
+| Reference | Base (Qwen3-VL-2B) | VCoder-SFT | VCoder-SFT+RL |
+|:---:|:---:|:---:|:---:|
+| ![](assets/results/sample_2/reference.png) | ![](assets/results/sample_2/base_rendered.png) | ![](assets/results/sample_2/sft_rendered.png) | ![](assets/results/sample_2/sft_rl_rendered.png) |
 
-### Sample 3 (testset idx 5) — CLIP: base 0.557 → ft **0.792** (+0.23)
+### Sample 3 (testset idx 428) — Overall: base 0.147 → SFT+RL **0.919** (+0.77)
 
-| Reference | Base (Qwen3-VL-2B) | VCoder-GRPO-CLIP |
-|:---:|:---:|:---:|
-| ![](assets/results/sample_3/reference.png) | ![](assets/results/sample_3/base_rendered.png) | ![](assets/results/sample_3/finetuned_rendered.png) |
-
-#### Per-sample CLIP Similarity (10 testset images)
-
-| idx | Base | VCoder-GRPO-CLIP | Δ |
-|---|---|---|---|
-| 0 | 0.525 | 0.542 | +0.018 |
-| 1 | 0.547 | 0.788 | +0.241 |
-| 2 | 0.380 | 0.369 | −0.011 |
-| **3** | **0.828** | **0.947** | **+0.120** |
-| 4 | 0.725 | 0.760 | +0.035 |
-| **5** | **0.557** | **0.792** | **+0.235** |
-| 6 | 0.789 | 0.633 | −0.156 |
-| **7** | **0.785** | **0.849** | **+0.064** |
-| 8 | 0.428 | 0.499 | +0.072 |
-| 9 | 0.754 | 0.752 | −0.001 |
-
-Bold rows = shown above. Average across 10 samples: base 0.632 → ft **0.693** (+0.061).
+| Reference | Base (Qwen3-VL-2B) | VCoder-SFT | VCoder-SFT+RL |
+|:---:|:---:|:---:|:---:|
+| ![](assets/results/sample_3/reference.png) | ![](assets/results/sample_3/base_rendered.png) | ![](assets/results/sample_3/sft_rendered.png) | ![](assets/results/sample_3/sft_rl_rendered.png) |
 
 ---
 

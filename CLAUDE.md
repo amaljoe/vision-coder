@@ -6,45 +6,69 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VisionCoder fine-tunes [Qwen3-VL-2B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct) using **GRPO** (Group Relative Policy Optimization) with rendering-based rewards to convert UI screenshots into HTML/CSS. Training is done on [WebSight](https://huggingface.co/datasets/HuggingFaceM4/WebSight) and evaluated on the [Design2Code](https://github.com/NoviScl/Design2Code) benchmark (484 examples).
 
+## Environment — Apptainer is ALWAYS required
+
+**All GPU workloads (training, inference, rendering/eval) must run inside the Apptainer container.** The host OS lacks required shared libraries (e.g. `libatk-bridge-2.0.so.0` for Playwright, CUDA-linked libs for vllm).
+
+```bash
+# Restore the vllm env to /dev/shm (fast, from tarball):
+restorevllm          # extracts ~/envs/vllm.tar.zst → /dev/shm/vllm (~30-60s)
+
+# Enter container and activate env:
+app                  # alias: apptainer exec --nv ~/images/cuda-custom-amal_latest.sif bash
+mamba activate /dev/shm/vllm
+
+# Python/tools inside env:
+PYTHON=/dev/shm/vllm/bin/python3
+ACCELERATE=/dev/shm/vllm/bin/accelerate
+```
+
+After any env change, save with `savevllm`. See `~/workspace/ixbrl-tagging/env.md` for full setup details.
+
 ## Setup
 
 ```bash
+# Inside Apptainer (/dev/shm/vllm active):
 pip install -e . --no-deps
-playwright install chromium
 ```
 
 ## Key Commands
 
-### Training (4-GPU)
+All commands below must be run inside Apptainer with `/dev/shm/vllm` active.
+
+### Training (2-GPU)
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3 accelerate launch \
-    --config_file configs/accelerate_4gpu.yaml \
+CUDA_VISIBLE_DEVICES=0,1 accelerate launch \
+    --config_file configs/accelerate_2gpu.yaml \
     vcoder/pipelines/training.py \
     --model_id Qwen/Qwen3-VL-2B-Instruct \
-    --output_dir outputs/vcoder-grpo-clip \
-    --max_samples 2000 --num_train_epochs 1 \
-    --batch_size 4 --num_generations 8 --max_completion_length 2048
+    --output_dir outputs/vcoder-rl
 ```
 
 ### Evaluation
 ```bash
-# 1. Start VLLM servers
-CUDA_VISIBLE_DEVICES=0 python3 -m vllm.entrypoints.openai.api_server \
-    --model Qwen/Qwen3-VL-2B-Instruct --port 8000 \
-    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
-
-CUDA_VISIBLE_DEVICES=1 python3 -m vllm.entrypoints.openai.api_server \
-    --model outputs/vcoder-grpo-clip/checkpoint-500 --port 8001 \
-    --gpu-memory-utilization 0.45 --max-model-len 8192 --trust-remote-code
+# 1. Start VLLM servers (one per GPU, inside Apptainer)
+#    HF models need local patched cache — see generate_predictions.py MODEL_CONFIGS
+CUDA_VISIBLE_DEVICES=0 /dev/shm/vllm/bin/python3 -m vllm.entrypoints.openai.api_server \
+    --model amaljoe88/vcoder-sft --port 8000 \
+    --gpu-memory-utilization 0.7 --max-model-len 8192 --trust-remote-code --dtype bfloat16
 
 # 2. Generate predictions
-python3 vcoder/eval/generate_predictions.py \
-    --model vcoder-grpo-clip \
+/dev/shm/vllm/bin/python3 vcoder/eval/generate_predictions.py \
+    --model vcoder-sft \
     --testset_dir ../Design2Code/testset_final_extracted
 
-# 3. Run Design2Code benchmark
-cd ../Design2Code/Design2Code && python3 metrics/multi_processing_eval.py
+# 3. Run Design2Code benchmark (inside Apptainer)
+cd ../Design2Code/Design2Code
+PYTHONPATH=$(pwd) /dev/shm/vllm/bin/python3 metrics/multi_processing_eval.py
 ```
+
+### HF Model Config Gotchas
+Fine-tuned models on HF (`amaljoe88/vcoder-*`) need two patches after `snapshot_download()`:
+- `config.json`: `text_config.rope_scaling` is `None` — copy from base model config
+- `tokenizer_config.json`: `extra_special_tokens` saved as list — change to `{}`
+
+See the patching script in git history or re-run the patch block from the conversation.
 
 ### Plotting
 ```bash

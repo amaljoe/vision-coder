@@ -53,6 +53,24 @@ MODEL_CONFIGS: dict[str, dict] = {
         "model_id": "/home/compiling-ganesh/24m0797/workspace/vision-coder/outputs/vcoder-grpo-clip/checkpoint-500",
         "extra_body": {},
     },
+    "vcoder-sft": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "amaljoe88/vcoder-sft",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
+    "vcoder-rl": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "amaljoe88/vcoder-rl",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
+    "vcoder-sft-rl": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "amaljoe88/vcoder-sft-rl",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
 }
 
 # Design2Code direct-prompting prompt (matches the paper's evaluation setup)

@@ -67,6 +67,9 @@ def compute_clip_similarity(
     inputs = processor(images=[img_a.convert("RGB"), img_b.convert("RGB")], return_tensors="pt").to(device)
     with torch.no_grad():
         feats = model.get_image_features(**inputs)
+        # Some transformers versions return a dataclass instead of a tensor
+        if not isinstance(feats, torch.Tensor):
+            feats = feats.pooler_output if hasattr(feats, "pooler_output") else feats.last_hidden_state[:, 0]
         feats = feats / feats.norm(dim=-1, keepdim=True)
     score = (feats[0] @ feats[1]).item()
     # Clamp to [0, 1] (cosine sim can be slightly negative for very different images)

@@ -15,6 +15,10 @@ os.environ.setdefault("NCCL_SOCKET_IFNAME", "lo")
 os.environ.setdefault("GLOO_SOCKET_IFNAME", "lo")
 os.environ.setdefault("NCCL_IB_DISABLE", "1")
 
+# Keep HF dataset cache in /dev/shm to avoid home filesystem quota issues
+os.environ.setdefault("HF_DATASETS_CACHE", "/dev/shm/hf_datasets_cache")
+os.makedirs(os.environ["HF_DATASETS_CACHE"], exist_ok=True)
+
 for _v in ("ALL_PROXY", "all_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy"):
     os.environ.pop(_v, None)
 
@@ -105,9 +109,16 @@ def main():
         # max_pixels=max_pixels,
     )
     accelerator.print("Processor loaded. Loading model weights...")
+    try:
+        import flash_attn  # noqa: F401
+        attn_impl = "flash_attention_2"
+    except ImportError:
+        attn_impl = "sdpa"
+    accelerator.print(f"Using attention: {attn_impl}")
+
     model = Qwen3VLForConditionalGeneration.from_pretrained(
         args.model_id,
-        attn_implementation="flash_attention_2",
+        attn_implementation=attn_impl,
         dtype=torch.bfloat16,
     )
     accelerator.print("Model loaded.")
@@ -138,9 +149,6 @@ def main():
         vllm_tensor_parallel_size=1,
         vllm_max_model_length=args.vllm_max_model_length,
 
-        # Skip the expensive forward pass after vLLM generation.
-        # Saves ~5s per step (measured: 38% of step time).
-        vllm_importance_sampling_correction=False,
     )
 
     # --- Reward functions ---

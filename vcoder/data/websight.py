@@ -3,7 +3,11 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from datasets import Dataset, load_dataset, load_from_disk
+from datasets import Dataset, load_dataset, load_from_disk, disable_caching
+
+# Disable HuggingFace datasets file cache to avoid home filesystem quota issues.
+# All map() operations run in-memory.
+disable_caching()
 from PIL import Image
 
 
@@ -118,6 +122,68 @@ def download_websight_dataset(
     return ds
 
 
+def _make_sft_conversation(example: dict) -> dict:
+    """Convert a raw WebSight row into SFT prompt+completion format for TRL SFTTrainer."""
+    html = example["text"]
+    prompt = [
+        {"role": "system", "content": [{"type": "text", "text": SYSTEM_PROMPT}]},
+        {
+            "role": "user",
+            "content": [
+                {"type": "image"},
+                {"type": "text", "text": "Generate the HTML code that reproduces this website screenshot."},
+            ],
+        },
+    ]
+    completion = [
+        {
+            "role": "assistant",
+            "content": [{"type": "text", "text": f"```html\n{html}\n```"}],
+        }
+    ]
+    return {
+        "prompt": prompt,
+        "completion": completion,
+        "image": _resize_image(example["image"]),
+        "solution": html,
+    }
+
+
+def _add_completion_column(example: dict) -> dict:
+    """Add SFT completion column derived from the solution column."""
+    html = example["solution"]
+    completion = [
+        {
+            "role": "assistant",
+            "content": [{"type": "text", "text": f"```html\n{html}\n```"}],
+        }
+    ]
+    return {"completion": completion}
+
+
+def load_websight_sft_dataset(
+    max_samples: int = 2000,
+    max_html_chars: int = 3000,
+    seed: int = 42,
+    cache_dir: str = DEFAULT_CACHE_DIR,
+    max_width: int | None = 512,
+) -> Dataset:
+    """Load WebSight in SFT prompt+completion format.
+
+    Derives from the cached GRPO dataset (same cache, no duplicate storage).
+    Returns a Dataset with columns: prompt, completion, image, solution.
+    """
+    ds = load_websight_dataset(
+        max_samples=max_samples,
+        max_html_chars=max_html_chars,
+        seed=seed,
+        cache_dir=cache_dir,
+        max_width=max_width,
+    )
+    ds = ds.map(_add_completion_column, load_from_cache_file=False)
+    return ds
+
+
 def load_websight_dataset(
     max_samples: int = 2000,
     max_html_chars: int = 3000,
@@ -148,7 +214,10 @@ def load_websight_dataset(
         ds = download_websight_dataset(max_samples, max_html_chars, seed, cache_dir)
 
     # Resize images (handles both fresh downloads and older full-res caches)
-    ds = ds.map(lambda ex: {"image": _resize_image(ex["image"], max_width=max_width)})
+    ds = ds.map(
+        lambda ex: {"image": _resize_image(ex["image"], max_width=max_width)},
+        load_from_cache_file=False,
+    )
     return ds
 
 

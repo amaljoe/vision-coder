@@ -1,0 +1,147 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\citation{si2025design2code}
+\citation{liu2023llava,dai2023instructblip,alayrac2022flamingo}
+\citation{si2025design2code,huggingface2024websight}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
+\citation{playwright2023}
+\citation{radford2021clip}
+\citation{deepseek2025r1}
+\citation{shao2024deepseekmath}
+\citation{beltramelli2017pix2code}
+\citation{huggingface2024websight}
+\citation{si2025design2code}
+\@writefile{toc}{\contentsline {paragraph}{Contributions.}{2}{section*.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}Related Work}{2}{section.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Screenshot-to-Code Generation}{2}{subsection.2.1}\protected@file@percent }
+\citation{ouyang2022instructgpt}
+\citation{schulman2017proximal}
+\citation{shao2024deepseekmath}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Overview of the \textsc  {VisionCoder} training pipeline. Starting from \textsc  {Qwen3-VL-2B-Instruct}, we first apply SFT with a progressive resolution curriculum on 20,000 WebSight samples. The resulting checkpoint is then fine-tuned with GRPO using four verifiable reward components. During GRPO training, each generated HTML is rendered in a headless browser and compared to the reference screenshot via CLIP, providing a direct visual fidelity gradient.\relax }}{3}{figure.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{fig:overview}{{1}{3}{Overview of the \model {VisionCoder} training pipeline. Starting from \model {Qwen3-VL-2B-Instruct}, we first apply SFT with a progressive resolution curriculum on 20,000 WebSight samples. The resulting checkpoint is then fine-tuned with GRPO using four verifiable reward components. During GRPO training, each generated HTML is rendered in a headless browser and compared to the reference screenshot via CLIP, providing a direct visual fidelity gradient.\relax }{figure.caption.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Reinforcement Learning from Verifiable Rewards}{3}{subsection.2.2}\protected@file@percent }
+\citation{deepseek2025r1}
+\citation{rafailov2023dpo}
+\citation{liu2023llava}
+\citation{dai2023instructblip}
+\citation{alayrac2022flamingo}
+\citation{bai2023qwenvl}
+\citation{qwen3vl2025}
+\citation{radford2021clip}
+\citation{zhang2018lpips}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}Vision-Language Models}{4}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}Visual Similarity as a Reward Signal}{4}{subsection.2.4}\protected@file@percent }
+\citation{qwen3vl2025}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{5}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Task Formulation}{5}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Base Model}{5}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Multi-Component Reward Design}{5}{subsection.3.3}\protected@file@percent }
+\newlabel{sec:reward}{{3.3}{5}{Multi-Component Reward Design}{subsection.3.3}{}}
+\newlabel{eq:reward}{{1}{5}{Multi-Component Reward Design}{equation.3.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Format Reward ($R_{\mathrm  {fmt}}$, max 1.0).}{5}{section*.3}\protected@file@percent }
+\citation{playwright2023}
+\citation{huggingface2024websight}
+\@writefile{toc}{\contentsline {paragraph}{Validity Reward ($R_{\mathrm  {val}}$, max 1.0).}{6}{section*.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Structural Reward ($R_{\mathrm  {struct}}$, max 1.0).}{6}{section*.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Visual Reward ($R_{\mathrm  {clip}}$, max $\approx $0.95).}{6}{section*.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}SFT Pre-Training with Resolution Curriculum}{6}{subsection.3.4}\protected@file@percent }
+\newlabel{sec:sft}{{3.4}{6}{SFT Pre-Training with Resolution Curriculum}{subsection.3.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Resolution Curriculum.}{6}{section*.8}\protected@file@percent }
+\citation{shao2024deepseekmath}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Multi-component reward design. All rewards are computed from the generated HTML without human annotation. The 3$\times $ visual weight makes rendered CLIP similarity the dominant optimisation objective.\relax }}{7}{table.caption.7}\protected@file@percent }
+\newlabel{tab:rewards}{{1}{7}{Multi-component reward design. All rewards are computed from the generated HTML without human annotation. The 3$\times $ visual weight makes rendered CLIP similarity the dominant optimisation objective.\relax }{table.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Resolution curriculum used during SFT. Image token counts are for a typical 4:3 aspect ratio screenshot. Training 60\% of steps at quarter resolution reduces image token cost by up to 16$\times $ for the majority of training.\relax }}{7}{table.caption.9}\protected@file@percent }
+\newlabel{tab:curriculum}{{2}{7}{Resolution curriculum used during SFT. Image token counts are for a typical 4:3 aspect ratio screenshot. Training 60\% of steps at quarter resolution reduces image token cost by up to 16$\times $ for the majority of training.\relax }{table.caption.9}{}}
+\@writefile{toc}{\contentsline {paragraph}{SFT Training Details.}{7}{section*.10}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.5}GRPO Fine-Tuning}{7}{subsection.3.5}\protected@file@percent }
+\citation{vonwerra2022trl}
+\citation{gugger2022accelerate}
+\citation{vonwerra2022trl}
+\citation{wolf2020transformers}
+\citation{huggingface2024websight}
+\citation{si2025design2code}
+\citation{si2025design2code}
+\citation{si2025design2code}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.6}Implementation Details}{8}{subsection.3.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Hardware and Framework.}{8}{section*.11}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Rendering.}{8}{section*.12}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{CLIP.}{8}{section*.13}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Experiments}{8}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Experimental Setup}{8}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Training Data.}{8}{section*.14}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Evaluation.}{8}{section*.15}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Baselines.}{8}{section*.16}\protected@file@percent }
+\citation{si2025design2code}
+\citation{si2025design2code}
+\citation{si2025design2code}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Design2Code benchmark results (484 examples). $\dagger $: Scores for GPT-4V and Gemini Pro Vision are from \citet  {si2025design2code}, computed with the same evaluation script. Overall = arithmetic mean of five component metrics. \textbf  {\leavevmode {\color  {bestcol}Bold green}} indicates the best value per column.\relax }}{9}{table.caption.18}\protected@file@percent }
+\newlabel{tab:d2c}{{3}{9}{Design2Code benchmark results (484 examples). $\dagger $: Scores for GPT-4V and Gemini Pro Vision are from \citet {si2025design2code}, computed with the same evaluation script. Overall = arithmetic mean of five component metrics. \best {Bold green} indicates the best value per column.\relax }{table.caption.18}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Main Results}{9}{subsection.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Design2Code.}{9}{section*.17}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{WebSight Holdout.}{9}{section*.19}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces WebSight holdout evaluation (100 samples). Total = Format + Validity + Structural + 3$\times $CLIP (max = 6.0). Both fine-tuned models achieve near-perfect Format and Validity.\relax }}{10}{table.caption.20}\protected@file@percent }
+\newlabel{tab:websight}{{4}{10}{WebSight holdout evaluation (100 samples). Total = Format + Validity + Structural + 3$\times $CLIP (max = 6.0). Both fine-tuned models achieve near-perfect Format and Validity.\relax }{table.caption.20}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}Qualitative Analysis}{10}{subsection.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {5}Training Dynamics Analysis}{10}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}The Generation-Length Lifecycle}{10}{subsection.5.1}\protected@file@percent }
+\newlabel{sec:length}{{5.1}{10}{The Generation-Length Lifecycle}{subsection.5.1}{}}
+\@writefile{toc}{\contentsline {paragraph}{Phase 1 — Verbose Exploration (steps 1--10).}{10}{section*.23}\protected@file@percent }
+\@writefile{toc}{\contentsline {paragraph}{Phase 2 — Brevity Collapse (steps 10--100).}{10}{section*.24}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Qualitative comparison on three Design2Code examples (testset indices 158, 5, 428). Numbers in parentheses are the Design2Code Overall scores. Rows 1--2 illustrate the policy collapse of VisionCoder-RL (white-page degenerate output), in stark contrast to VisionCoder-SFT+RL's faithful reproductions. Row 3 shows a case where VisionCoder-RL succeeds (0.896), demonstrating the inconsistency of RL-only training without a SFT warm-start.\relax }}{11}{figure.caption.21}\protected@file@percent }
+\newlabel{fig:qualitative}{{2}{11}{Qualitative comparison on three Design2Code examples (testset indices 158, 5, 428). Numbers in parentheses are the Design2Code Overall scores. Rows 1--2 illustrate the policy collapse of VisionCoder-RL (white-page degenerate output), in stark contrast to VisionCoder-SFT+RL's faithful reproductions. Row 3 shows a case where VisionCoder-RL succeeds (0.896), demonstrating the inconsistency of RL-only training without a SFT warm-start.\relax }{figure.caption.21}{}}
+\@writefile{toc}{\contentsline {paragraph}{Phase 3 — Visual Awakening ($\approx $step 100).}{11}{section*.25}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Generation length statistics (mean, min, max) over GRPO training steps. The four phases of the generation-length lifecycle are visible: (1) verbose exploration with frequent truncation, (2) brevity collapse as the model avoids truncation penalties, (3) visual awakening as CLIP reward incentivises richer HTML, and (4) stable expressive equilibrium. The CLIP-enabled run maintains longer completions ($\approx $456 tokens) than the no-CLIP run ($\approx $339 tokens), because richer HTML earns higher visual reward.\relax }}{12}{figure.caption.22}\protected@file@percent }
+\newlabel{fig:completions}{{3}{12}{Generation length statistics (mean, min, max) over GRPO training steps. The four phases of the generation-length lifecycle are visible: (1) verbose exploration with frequent truncation, (2) brevity collapse as the model avoids truncation penalties, (3) visual awakening as CLIP reward incentivises richer HTML, and (4) stable expressive equilibrium. The CLIP-enabled run maintains longer completions ($\approx $456 tokens) than the no-CLIP run ($\approx $339 tokens), because richer HTML earns higher visual reward.\relax }{figure.caption.22}{}}
+\@writefile{toc}{\contentsline {paragraph}{Phase 4 — Expressive Equilibrium (steps 200+).}{12}{section*.26}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}Reward Phase Transitions}{12}{subsection.5.2}\protected@file@percent }
+\newlabel{sec:reward_curves}{{5.2}{12}{Reward Phase Transitions}{subsection.5.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Per-component reward curves during GRPO training. Format and validity rewards (dashed) converge to near-perfect within 50 steps. The CLIP visual reward (orange) only activates in runs where it is included as a training signal; without CLIP, the total reward plateaus at $\approx $2.5. The phase transition at step $\approx $100 corresponds to the visual awakening described in Section\nobreakspace  {}\ref  {sec:length}.\relax }}{13}{figure.caption.27}\protected@file@percent }
+\newlabel{fig:rewards}{{4}{13}{Per-component reward curves during GRPO training. Format and validity rewards (dashed) converge to near-perfect within 50 steps. The CLIP visual reward (orange) only activates in runs where it is included as a training signal; without CLIP, the total reward plateaus at $\approx $2.5. The phase transition at step $\approx $100 corresponds to the visual awakening described in Section~\ref {sec:length}.\relax }{figure.caption.27}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}The Necessity of SFT Warm-Starting}{13}{subsection.5.3}\protected@file@percent }
+\newlabel{sec:coldstart}{{5.3}{13}{The Necessity of SFT Warm-Starting}{subsection.5.3}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Training dynamics: policy entropy and loss over GRPO training steps. Entropy decreases monotonically in both runs, indicating convergence to a confident policy. The CLIP-enabled run maintains higher entropy ($\approx $0.16 at step 500) than the no-CLIP run ($\approx $0.07), reflecting the visual reward's incentive for exploring diverse HTML approaches across different reference screenshots.\relax }}{14}{figure.caption.28}\protected@file@percent }
+\newlabel{fig:dynamics}{{5}{14}{Training dynamics: policy entropy and loss over GRPO training steps. Entropy decreases monotonically in both runs, indicating convergence to a confident policy. The CLIP-enabled run maintains higher entropy ($\approx $0.16 at step 500) than the no-CLIP run ($\approx $0.07), reflecting the visual reward's incentive for exploring diverse HTML approaches across different reference screenshots.\relax }{figure.caption.28}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.4}Entropy Dynamics and Policy Stability}{14}{subsection.5.4}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Distribution of CLIP reward ratios across rollouts at different training stages. At initialisation (left), CLIP rewards cluster near zero (blank-page outputs). After training (right), the distribution shifts to substantially higher values, with most rollouts earning meaningful visual reward. The long tail indicates that some reference pages remain challenging to reproduce.\relax }}{15}{figure.caption.29}\protected@file@percent }
+\newlabel{fig:clipratios}{{6}{15}{Distribution of CLIP reward ratios across rollouts at different training stages. At initialisation (left), CLIP rewards cluster near zero (blank-page outputs). After training (right), the distribution shifts to substantially higher values, with most rollouts earning meaningful visual reward. The long tail indicates that some reference pages remain challenging to reproduce.\relax }{figure.caption.29}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{15}{section.6}\protected@file@percent }
+\bibstyle{abbrvnat}
+\bibdata{refs}
+\bibcite{alayrac2022flamingo}{{1}{2022}{{Alayrac et~al.}}{{Alayrac, Donahue, Luc, Miech, Barr, Hasson, Lenc, Mensch, Millican, Reynolds, et~al.}}}
+\bibcite{bai2023qwenvl}{{2}{2023}{{Bai et~al.}}{{Bai, Bai, Yang, Wang, Tan, Wang, Lin, Zhou, and Zhou}}}
+\bibcite{beltramelli2017pix2code}{{3}{2017}{{Beltramelli}}{{}}}
+\bibcite{dai2023instructblip}{{4}{2023}{{Dai et~al.}}{{Dai, Li, Li, Tiong, Zhao, Wang, Li, Fung, and Hoi}}}
+\bibcite{deepseek2025r1}{{5}{2025}{{DeepSeek-AI}}{{}}}
+\bibcite{gugger2022accelerate}{{6}{2022}{{Gugger et~al.}}{{Gugger, Debut, Wolf, Schmid, Mueller, Mangrulkar, Sun, and Bossan}}}
+\bibcite{huggingface2024websight}{{7}{2024}{{HuggingFace M4 Team}}{{}}}
+\bibcite{liu2023llava}{{8}{2023}{{Liu et~al.}}{{Liu, Li, Wu, and Lee}}}
+\bibcite{playwright2023}{{9}{2023}{{Microsoft}}{{}}}
+\bibcite{ouyang2022instructgpt}{{10}{2022}{{Ouyang et~al.}}{{Ouyang, Wu, Jiang, Almeida, Wainwright, Mishkin, Zhang, Agarwal, Slama, Ray, et~al.}}}
+\bibcite{qwen3vl2025}{{11}{2025}{{Qwen Team}}{{}}}
+\bibcite{radford2021clip}{{12}{2021}{{Radford et~al.}}{{Radford, Kim, Hallacy, Ramesh, Goh, Agarwal, Sastry, Askell, Mishkin, Clark, et~al.}}}
+\@writefile{toc}{\contentsline {paragraph}{Limitations.}{16}{section*.30}\protected@file@percent }
+\bibcite{rafailov2023dpo}{{13}{2023}{{Rafailov et~al.}}{{Rafailov, Sharma, Mitchell, Manning, Ermon, and Finn}}}
+\bibcite{schulman2017proximal}{{14}{2017}{{Schulman et~al.}}{{Schulman, Wolski, Dhariwal, Radford, and Klimov}}}
+\bibcite{shao2024deepseekmath}{{15}{2024}{{Shao et~al.}}{{Shao, Wang, Zhu, Xu, Song, Bi, Zhang, Zhang, Li, Wu, and Guo}}}
+\bibcite{si2025design2code}{{16}{2025}{{Si et~al.}}{{Si, Zhang, Li, Yang, Liu, and Yang}}}
+\bibcite{vonwerra2022trl}{{17}{2022}{{von Werra et~al.}}{{von Werra, Belkada, Tunstall, Beeching, Thrush, Lambert, and Huang}}}
+\bibcite{wolf2020transformers}{{18}{2020}{{Wolf et~al.}}{{Wolf, Debut, Sanh, Chaumond, Delangue, Moi, Cistac, Rault, Louf, Funtowicz, et~al.}}}
+\bibcite{zhang2018lpips}{{19}{2018}{{Zhang et~al.}}{{Zhang, Isola, Efros, Shechtman, and Wang}}}
+\gdef \@abspage@last{17}

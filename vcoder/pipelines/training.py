@@ -71,6 +71,14 @@ def parse_args():
 
     # vLLM
     p.add_argument("--vllm_max_model_length", type=int, default=4096)
+    p.add_argument("--vllm_gpu_memory_utilization", type=float, default=0.9)
+    p.add_argument("--no_vllm", action="store_true", help="Disable vLLM (use model.generate instead)")
+    p.add_argument("--vllm_mode", type=str, default="colocate", choices=["colocate", "server"])
+    p.add_argument("--vllm_server_host", type=str, default="localhost")
+    p.add_argument("--vllm_server_port", type=int, default=8000)
+
+    # Optimizer
+    p.add_argument("--optim", type=str, default="adamw_torch", help="Optimizer (e.g. adamw_bnb_8bit for memory efficiency)")
 
     # Logging / checkpointing
     p.add_argument("--logging_steps", type=int, default=1)
@@ -124,7 +132,8 @@ def main():
     accelerator.print("Model loaded.")
 
     # --- Training config ---
-    training_args = GRPOConfig(
+    use_vllm = not args.no_vllm
+    grpo_kwargs = dict(
         output_dir=args.output_dir,
         learning_rate=args.learning_rate,
         warmup_ratio=args.warmup_ratio,
@@ -138,18 +147,33 @@ def main():
         max_completion_length=args.max_completion_length,
         num_generations=args.num_generations,
         beta=args.beta,
+        optim=args.optim,
         report_to=["tensorboard"],
         logging_steps=args.logging_steps,
         save_steps=args.save_steps,
         save_total_limit=args.save_total_limit,
-
-        # vLLM colocate: each GPU runs its own vLLM instance sharing GPU with training
-        use_vllm=True,
-        vllm_mode="colocate",
-        vllm_tensor_parallel_size=1,
-        vllm_max_model_length=args.vllm_max_model_length,
-
+        use_vllm=use_vllm,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
+        chat_template_kwargs={"enable_thinking": False},
     )
+    if use_vllm:
+        vllm_kwargs = dict(
+            vllm_mode=args.vllm_mode,
+            vllm_max_model_length=args.vllm_max_model_length,
+        )
+        if args.vllm_mode == "colocate":
+            vllm_kwargs.update(dict(
+                vllm_tensor_parallel_size=1,
+                vllm_gpu_memory_utilization=args.vllm_gpu_memory_utilization,
+            ))
+        else:  # server
+            vllm_kwargs.update(dict(
+                vllm_server_host=args.vllm_server_host,
+                vllm_server_port=args.vllm_server_port,
+            ))
+        grpo_kwargs.update(vllm_kwargs)
+    training_args = GRPOConfig(**grpo_kwargs)
 
     # --- Reward functions ---
     reward_funcs = [

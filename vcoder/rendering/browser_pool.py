@@ -4,9 +4,15 @@ import asyncio
 import os
 from typing import Optional
 
-# Playwright browser location (installed on this cluster)
+# Playwright browser location — prefer /dev/shm/pw-browsers (fast SSD) if it
+# exists, fall back to ~/playwright-browsers (home dir install on this cluster).
 if "PLAYWRIGHT_BROWSERS_PATH" not in os.environ:
-    os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/dev/shm/pw-browsers"
+    _shm_browsers = "/dev/shm/pw-browsers"
+    _home_browsers = os.path.expanduser("~/playwright-browsers")
+    if os.path.isdir(_shm_browsers):
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _shm_browsers
+    elif os.path.isdir(_home_browsers):
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = _home_browsers
 
 # Chromium shared library dependencies not in system lib path on this cluster.
 # /dev/shm/compat_libs contains symlinks to libnspr4, libnss3, libasound, libstdc++.

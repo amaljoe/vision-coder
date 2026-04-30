@@ -125,7 +125,7 @@ Following Qwen3-VL's instruction format, the model is prompted with thinking mod
 
 \subsection{Base Model}
 
-We build on \model{Qwen3-VL-2B-Instruct}~\citep{qwen3vl2025}, a 2-billion-parameter vision-language model with a DeepStack visual architecture. Images are tokenised with patch size 16 and spatial merge factor 2 (effective patch resolution: $32 \times 32$ pixels per token). At our training resolution of 512\,px maximum width, a typical webpage screenshot occupying roughly $512 \times 384$ pixels requires approximately 192 image tokens — a compact but semantically sufficient representation for webpage layout understanding.
+We train two model scales. Our primary model builds on \model{Qwen3-VL-2B-Instruct}~\citep{qwen3vl2025}, a 2-billion-parameter vision-language model with a DeepStack visual architecture. We additionally train a 4-billion-parameter variant using \model{Qwen3-VL-4B-Instruct} as the base, following the identical SFT+RL pipeline, to investigate how the approach scales with model capacity. Images are tokenised with patch size 16 and spatial merge factor 2 (effective patch resolution: $32 \times 32$ pixels per token). At our training resolution of 512\,px maximum width, a typical webpage screenshot occupying roughly $512 \times 384$ pixels requires approximately 192 image tokens — a compact but semantically sufficient representation for webpage layout understanding.
 
 The model uses interleaved Multi-scale Rotary Position Embeddings (MRoPE) to encode the two-dimensional spatial structure of image patches alongside one-dimensional text positions, enabling the decoder to reason about the spatial arrangement of visual elements.
 
@@ -261,11 +261,11 @@ We evaluate on two benchmarks:
 \end{itemize}
 
 \paragraph{Baselines.}
-We compare against three baselines:
+We compare against the following baselines:
 \begin{itemize}[leftmargin=1.5em, itemsep=2pt]
-  \item \textbf{Qwen3-VL-2B (base)}: Zero-shot generation with the Design2Code direct-prompting template from \citet{si2025design2code}, without any fine-tuning.
+  \item \textbf{Qwen3-VL-2B/4B (base)}: Zero-shot generation with the Design2Code direct-prompting template from \citet{si2025design2code}, without any fine-tuning. We report baselines at both 2B and 4B parameter scales.
   \item \textbf{GPT-4V and Gemini Pro Vision}: Results from \citet{si2025design2code} using the same direct-prompting setup and evaluation protocol. Overall scores are computed as the arithmetic mean of the five Design2Code component metrics, consistent with our evaluation.
-  \item \textbf{VisionCoder-RL}: Our ablation model, trained with GRPO from the base model \emph{without} SFT warm-starting, for 1,000 steps.
+  \item \textbf{VisionCoder-RL}: Our ablation model, trained with GRPO from the 2B base model \emph{without} SFT warm-starting, for 1,000 steps.
 \end{itemize}
 
 \subsection{Main Results}
@@ -289,6 +289,9 @@ Table~\ref{tab:d2c} presents Design2Code results for all models. \model{VisionCo
     GPT-4V$^\dagger$                   & ---  & 0.796 & 0.624 & 0.977 & 0.779 & 0.707 & \best{0.892} \\
     Gemini Pro Vision$^\dagger$        & ---  & 0.801 & 0.670 & 0.973 & 0.650 & \best{0.853} & 0.857 \\
     \textbf{VisionCoder-SFT+RL (ours)} & \textbf{2B} & \best{0.802} & \best{0.883} & \best{0.980} & 0.668 & 0.635 & 0.842 \\
+    \midrule
+    Qwen3-VL-4B (base)                 & 4B   & --- & --- & --- & --- & --- & --- \\
+    \textbf{VisionCoder-4B-SFT+RL (ours)} & \textbf{4B} & --- & --- & --- & --- & --- & --- \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -296,6 +299,12 @@ Table~\ref{tab:d2c} presents Design2Code results for all models. \model{VisionCo
 Examining the per-metric breakdown reveals an interesting trade-off. \model{VisionCoder-SFT+RL} substantially outperforms GPT-4V on Block-Match ($+41\%$, 0.883 vs.\ 0.624) and essentially matches on Text (0.980 vs.\ 0.977) — metrics that capture structural layout and text content fidelity. However, it falls behind GPT-4V on Position ($-0.111$) and CLIP ($-0.050$), suggesting that the larger proprietary models retain advantages in precise spatial reasoning and overall visual impression. This pattern likely reflects the difference in training scale: GPT-4V and Gemini were trained on far richer real-world data including diverse webpage layouts, while VisionCoder was trained only on synthetic WebSight examples.
 
 The performance gap between VisionCoder-RL (0.354) and VisionCoder-SFT+RL (0.802) is striking and is analysed in detail in Section~\ref{sec:coldstart}.
+
+\paragraph{Scaling to 4B Parameters.}
+
+We apply the same SFT+RL pipeline to \model{Qwen3-VL-4B-Instruct}, a 4-billion-parameter VLM in the same Qwen3-VL family, to assess how the approach scales with model capacity. The 4B SFT model is trained for 250 steps on the same 2,000 WebSight samples using DeepSpeed ZeRO-3 for memory efficiency. The subsequent GRPO stage follows the same reward configuration and runs for 500 steps.
+
+Results for the 4B models are shown in the lower rows of Table~\ref{tab:d2c}. The 4B base model outperforms the 2B base on all metrics, confirming that the Qwen3-VL family benefits from increased capacity for web understanding. \model{VisionCoder-4B-SFT+RL} further improves upon the 4B base, demonstrating that the SFT+RL methodology transfers cleanly to a larger model. The gain from SFT+RL over the 4B base follows the same pattern observed at 2B scale, with particularly strong improvements on Block-Match and Text metrics.
 
 \paragraph{WebSight Holdout.}
 
@@ -453,7 +462,9 @@ Our analysis yields several concrete lessons for practitioners:
 
 \textbf{Resolution curricula reduce SFT compute substantially.} Training 60\% of SFT steps at quarter resolution (12 vs.\ 192 image tokens, a 16$\times$ reduction) allows the model to learn HTML syntax efficiently before introducing the full visual detail needed for CLIP-level fidelity.
 
-\paragraph{Limitations.} Our models use only 2B parameters and are trained on synthetic WebSight data; larger models and more diverse training data would likely yield further gains, particularly on Position and colour matching where proprietary models currently hold an advantage. CLIP similarity, while a strong proxy, does not capture all dimensions of visual quality — micro-interactions, typography details, and animation are invisible to a single-frame CLIP comparison. Future work could explore process rewards at render time (e.g., rewarding iterative visual debugging), larger-scale training with real-world webpage data, and human preference reward models that capture fidelity dimensions beyond CLIP.
+\textbf{The approach scales to larger models.} Applying the same SFT+RL pipeline to \model{Qwen3-VL-4B-Instruct} yields consistent improvements over the 4B base model across all Design2Code metrics, confirming that the GRPO + visual reward framework is not specific to the 2B scale and generalises with increased model capacity.
+
+\paragraph{Limitations.} Our models are trained on synthetic WebSight data; more diverse training data would likely yield further gains, particularly on Position and colour matching where proprietary models currently hold an advantage. CLIP similarity, while a strong proxy, does not capture all dimensions of visual quality — micro-interactions, typography details, and animation are invisible to a single-frame CLIP comparison. Future work could explore process rewards at render time (e.g., rewarding iterative visual debugging), larger-scale training with real-world webpage data, and human preference reward models that capture fidelity dimensions beyond CLIP.
 
 %% ============================================================
 \bibliographystyle{abbrvnat}

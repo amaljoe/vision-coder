@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 import logging
+import threading
 from typing import Optional
 
 from PIL import Image
@@ -12,6 +13,24 @@ from vcoder.utils.html_utils import extract_html_from_completion
 from vcoder.utils.image_utils import compute_clip_similarity, compute_ssim
 
 logger = logging.getLogger(__name__)
+
+# Persistent background event loop so BrowserPool (Playwright) is created once
+# and reused across training steps. asyncio.run() creates/destroys a loop each
+# call, breaking the cached Playwright browser objects in BrowserPool._instance.
+_bg_loop: asyncio.AbstractEventLoop | None = None
+_bg_thread: threading.Thread | None = None
+_bg_lock = threading.Lock()
+
+
+def _get_bg_loop() -> asyncio.AbstractEventLoop:
+    global _bg_loop, _bg_thread
+    with _bg_lock:
+        if _bg_loop is None or _bg_loop.is_closed():
+            BrowserPool._instance = None  # reset stale singleton if loop restarted
+            _bg_loop = asyncio.new_event_loop()
+            _bg_thread = threading.Thread(target=_bg_loop.run_forever, daemon=True, name="reward-async")
+            _bg_thread.start()
+    return _bg_loop
 
 
 async def _render_html(html: str, pool: BrowserPool) -> Image.Image | None:
@@ -58,32 +77,22 @@ async def _compute_visual_rewards(
     return rewards
 
 
+def _run_in_bg(coro, timeout=300):
+    """Submit a coroutine to the persistent background event loop and wait for the result."""
+    loop = _get_bg_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result(timeout=timeout)
+
+
 def visual_fidelity_reward(
     completions: list[list[dict[str, str]]],
     image: list[Image.Image],
     **kwargs,
 ) -> list[float]:
-    """Compute visual fidelity reward by rendering generated HTML and comparing to the input screenshot.
-
-    Uses async Playwright rendering with a browser pool for concurrent rendering.
-
-    Args:
-        completions: Model completions (each is a list with one dict containing 'content')
-        image: Reference screenshot images (one per completion)
-
-    Returns:
-        List of SSIM scores in [0, 1].
-    """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, _compute_visual_rewards(completions, image))
-                return future.result(timeout=60)
-        else:
-            return loop.run_until_complete(_compute_visual_rewards(completions, image))
-    except Exception:
+        return _run_in_bg(_compute_visual_rewards(completions, image))
+    except Exception as e:
+        logger.warning(f"visual_fidelity_reward failed: {e}")
         return [0.0] * len(completions)
 
 
@@ -101,14 +110,24 @@ async def _compute_clip_rewards(
 ) -> list[float]:
     """Async batch computation of CLIP-based visual rewards."""
     pool = await BrowserPool.get_instance()
-    rendered_images: list[Image.Image | None] = []
+    tasks = []
     for completion in completions:
         text = completion[0]["content"]
         html_str = extract_html_from_completion(text)
         if html_str is None:
+            tasks.append(None)
+        else:
+            tasks.append(asyncio.create_task(_render_html(html_str, pool)))
+
+    rendered_images: list[Image.Image | None] = []
+    for task in tasks:
+        if task is None:
             rendered_images.append(None)
         else:
-            rendered_images.append(await _render_html(html_str, pool))
+            try:
+                rendered_images.append(await task)
+            except Exception:
+                rendered_images.append(None)
 
     rewards = []
     for rendered, ref_image in zip(rendered_images, images):
@@ -127,26 +146,8 @@ def clip_visual_reward(
     image: list[Image.Image],
     **kwargs,
 ) -> list[float]:
-    """Compute visual reward using CLIP image-image similarity.
-
-    Renders generated HTML and compares the screenshot to the reference image
-    using CLIP embeddings (cosine similarity).
-
-    Args:
-        completions: Model completions (each is a list with one dict containing 'content')
-        image: Reference screenshot images (one per completion)
-
-    Returns:
-        List of CLIP similarity scores in [0, 1].
-    """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(asyncio.run, _compute_clip_rewards(completions, image))
-                return future.result(timeout=60)
-        else:
-            return loop.run_until_complete(_compute_clip_rewards(completions, image))
-    except Exception:
+        return _run_in_bg(_compute_clip_rewards(completions, image))
+    except Exception as e:
+        logger.warning(f"clip_visual_reward failed: {e}")
         return [0.0] * len(completions)

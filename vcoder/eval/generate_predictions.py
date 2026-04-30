@@ -71,6 +71,24 @@ MODEL_CONFIGS: dict[str, dict] = {
         "model_id": "amaljoe88/vcoder-sft-rl",
         "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
     },
+    "qwen-base-4b": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "Qwen/Qwen3-VL-4B-Instruct",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
+    "vcoder-4b-sft": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "/home/compiling-ganesh/24m0797/workspace/vision-coder/outputs/vcoder-4b-sft",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
+    "vcoder-4b-sft-rl": {
+        "host": "localhost",
+        "port": 8000,
+        "model_id": "/home/compiling-ganesh/24m0797/workspace/vision-coder/outputs/vcoder-4b-sft-rl",
+        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+    },
 }
 
 # Design2Code direct-prompting prompt (matches the paper's evaluation setup)

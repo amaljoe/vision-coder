@@ -14,6 +14,7 @@
 \usepackage{array}
 \usepackage{enumitem}
 \usepackage{float}
+\usepackage{afterpage}
 \usepackage{caption}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds}
@@ -96,9 +97,11 @@ pipelines.  The reward signal is naturally verifiable: render the generated
 HTML in a headless browser and compare the screenshot to the reference.
 No human annotation is required.
 
-Standard SFT on screenshot-HTML pairs misses this objective.  A model can
-generate syntactically valid but visually empty HTML and still see low training
-loss, because the loss measures token prediction accuracy, not visual output.
+Standard SFT trains on image-HTML pairs, but the same reference image can be
+reproduced by many structurally different HTML strings.  The supervision signal
+is therefore ambiguous: visually equivalent outputs differ at the token level,
+reducing sample efficiency---the model extracts less visual information per
+training example than a reward signal that directly measures rendered output.
 Our approach is to render each candidate in a headless browser via
 Playwright~\citep{playwright2023} and score it with a composite visual
 similarity metric.  This makes the training signal directly tied to what the
@@ -212,9 +215,9 @@ candidate $i$ is:
 \]
 where $r_i$ is the reward for candidate $i$ and $\mu_r$, $\sigma_r$ are the
 group mean and standard deviation.  The policy gradient is applied over all
-tokens in the trajectory weighted by $A_i$.  We use the DR-GRPO loss
+tokens in the trajectory weighted by $A_i$.  We use the DR-GRPO loss~\citep{vonwerra2022trl}
 (importance sampling disabled), giving a $\sim$38\% speed improvement
-over standard GRPO~\citep{vonwerra2022trl}.
+over standard GRPO.
 
 For GRPO we also apply a resolution curriculum (50\% at 128$\times$128,
 30\% at 256$\times$256, 20\% at 512$\times$512) to keep GPU memory under
@@ -341,9 +344,20 @@ The composite reward is:
   \label{eq:reward}
 \end{align}
 
-\noindent A \textbf{blank-page guard} sets $r_\text{total}\!=\!0$ if the
-predicted render has fewer than 0.5\% non-white pixels while the reference has
-content, preventing the model from gaming the reward with an empty page.
+\noindent\textbf{Content Multiplier.}
+We observed that blank rendered pages received composite rewards of
+$\approx\!0.3$, higher than many low-quality but non-blank pages, because
+format, validity, and colour sub-rewards all partially fire on empty white
+outputs.  Left unchecked, this would incentivise the model to generate blank
+pages.  We address this with a binary \emph{content multiplier} $C$:
+\[
+  r_{\text{final}} = C \cdot r_{\text{total}}, \quad
+  C = \begin{cases} 0 & \text{if non-white pixels} < 0.5\%\\
+                    1 & \text{otherwise,} \end{cases}
+\]
+where ``non-white'' is measured on the predicted render when the reference has
+content.  Blank pages receive exactly zero reward and are therefore heavily
+penalised relative to any partial attempt.
 
 \paragraph{Weight selection.}
 Weights were chosen via grid search over candidate combinations, scoring each
@@ -505,18 +519,19 @@ group is meaningful from the start.
 
 \subsection{Training Dynamics}
 
-\begin{figure}[!t]
+\begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{training_curves.pdf}
-  \caption{Training dynamics over 500 GRPO steps. \textit{Left:} Total reward
-    and scaled component rewards. Format and validity stabilise by step~100;
-    CLIP and SSIM rise steadily after that. \textit{Right:} Completion length
-    drops from $\approx$1{,}000 to $\approx$460 tokens as the model learns
-    to write concise HTML.}
+  \caption{Training dynamics over 500 GRPO steps. \textit{Left:} Component
+    reward curves (Format, Validity, CLIP, Structural), each in the $[0,1]$
+    range. Format and validity stabilise by step~100; CLIP rises steadily
+    thereafter. \textit{Right:} Mean completion length drops from
+    $\approx$1{,}000 to $\approx$460 tokens as the model learns to write
+    concise HTML.}
   \label{fig:training}
 \end{figure}
 
-\begin{figure*}[!t]
+\begin{figure*}[t]
   \centering
   \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/easy_0_ref.png}
@@ -559,21 +574,23 @@ Figure~\ref{fig:training} tracks reward components and completion lengths
 over 500 GRPO steps.  In the first 100 steps, format and validity rewards
 jump to near-perfect; the model quickly learns the output contract (HTML fence,
 DOCTYPE, required tags) and the gradient signal shifts entirely to visual
-metrics.  After step 100, CLIP and SSIM rise steadily while the total reward
-climbs from roughly 2.4 to 5.0.  Completion length drops sharply from around
-1{,}000 tokens to around 460: the model learns to write compact HTML
-rather than filling the context with redundant tags and inline comments.
+metrics.  After step 100, CLIP and structural rewards rise steadily.
+Completion length drops sharply from around 1{,}000 tokens to around 460:
+the model learns to write compact HTML rather than filling the context with
+redundant tags and inline comments.
 
 \subsection{Qualitative Results}
 
 Figure~\ref{fig:qualitative} shows reference-prediction pairs from
 VisionCoder-Env at three difficulty levels.  Easy examples (simple
-single-column pages) come out very close to the reference
-(Block\,91.0, CLIP\,98.4).  Medium examples (multi-section pages) reproduce
-content and color well with only small positional offsets
-(Block\,90.0, CLIP\,96.4).  Hard examples (complex multi-column dashboards)
-are only partially reproduced (Block\,75.3, CLIP\,58.0); deeply nested
-CSS grid and flex structures are where the model still struggles most.
+single-column pages) come out very close to the reference.  Medium examples
+(multi-section pages) reproduce content and layout well, though gradient-heavy
+pages show color inaccuracies and there are some positional offsets.  Hard examples (complex multi-column dashboards) are only
+partially reproduced; deeply nested CSS grid and flex structures are where the
+model still struggles most.  Hard examples occasionally produce completely blank
+pages: the model tends to write CSS first, and on complex layouts the
+stylesheet alone consumes the entire token budget, leaving no tokens for the
+HTML structure.
 
 % ========================================================================
 \section{Conclusion}
@@ -602,7 +619,6 @@ for financial filings is another direction with direct practical value.
 We thank Prof.\ Shivaram Kalyanakrishnan for guidance throughout this project.
 Compute was provided by IIT Bombay HPC facilities.
 
-\clearpage
 \bibliographystyle{abbrvnat}
 \bibliography{refs}
 

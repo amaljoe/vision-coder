@@ -205,7 +205,7 @@ to fine-grained visual detail at full resolution.
 
 After SFT we run Group Relative Policy Optimization
 (GRPO)~\citep{shao2024deepseekmath}.  For each training prompt (a reference
-image), the model generates $G = 8$ candidate HTML outputs.  The advantage for
+image), the model generates $G = 8$ candidate HTML outputs (Figure~\ref{fig:arch}).  The advantage for
 candidate $i$ is:
 \[
   A_i = \frac{r_i - \mu_r}{\sigma_r + \epsilon},
@@ -285,6 +285,15 @@ on \textbf{4$\times$ NVIDIA A100 80\,GB GPUs}, taking roughly 2 days.
 The reward function combines eight sub-rewards, each targeting a different
 quality dimension (Figure~\ref{fig:reward_weights}):
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{reward_weights.pdf}
+  \caption{Reward component weights in Eq.~\ref{eq:reward}. Text-Block has the
+    highest weight (3.4) because text content and placement are the most
+    immediately perceptible quality dimensions.}
+  \label{fig:reward_weights}
+\end{figure}
+
 \vspace{2pt}
 \noindent\textbf{Format} ($w\!=\!0.5$). Checks for a Markdown HTML fence
 (\texttt{```html~...~```}) and a valid \texttt{<!DOCTYPE html>} declaration.
@@ -341,6 +350,14 @@ Weights were chosen via grid search over candidate combinations, scoring each
 by Spearman rank correlation with human quality judgements across 15 reference
 webpages rated at 7 quality levels from blank to pixel-perfect.  The final
 weights achieve $\rho\!=\!0.955$ (Figure~\ref{fig:reward_validation}).
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{reward_validation.pdf}
+  \caption{Composite reward score vs.\ human quality rank across 7 quality
+    levels and 15 reference webpages (Spearman $\rho\!=\!0.955$).}
+  \label{fig:reward_validation}
+\end{figure}
 
 % ========================================================================
 \section{VisionCoder Environment}
@@ -488,16 +505,7 @@ group is meaningful from the start.
 
 \subsection{Training Dynamics}
 
-Figure~\ref{fig:training} tracks reward components and completion lengths
-over 500 GRPO steps.  In the first 100 steps, format and validity rewards
-jump to near-perfect; the model quickly learns the output contract (HTML fence,
-DOCTYPE, required tags) and the gradient signal shifts entirely to visual
-metrics.  After step 100, CLIP and SSIM rise steadily while the total reward
-climbs from roughly 2.4 to 5.0.  Completion length drops sharply from around
-1{,}000 tokens to around 460: the model learns to write compact HTML
-rather than filling the context with redundant tags and inline comments.
-
-\begin{figure}[t]
+\begin{figure}[!t]
   \centering
   \includegraphics[width=\columnwidth]{training_curves.pdf}
   \caption{Training dynamics over 500 GRPO steps. \textit{Left:} Total reward
@@ -508,35 +516,7 @@ rather than filling the context with redundant tags and inline comments.
   \label{fig:training}
 \end{figure}
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{reward_weights.pdf}
-  \caption{Reward component weights in Eq.~\ref{eq:reward}. Text-Block has the
-    highest weight (3.4) because text content and placement are the most
-    immediately perceptible quality dimensions.}
-  \label{fig:reward_weights}
-\end{figure}
-
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\columnwidth]{reward_validation.pdf}
-  \caption{Composite reward score vs.\ human quality rank across 7 quality
-    levels and 15 reference webpages (Spearman $\rho\!=\!0.955$).}
-  \label{fig:reward_validation}
-\end{figure}
-
-\subsection{Qualitative Results}
-
-Figure~\ref{fig:qualitative} shows reference-prediction pairs from
-VisionCoder-Env at three difficulty levels.  Easy examples (simple
-single-column pages) come out very close to the reference
-(Block\,91.0, CLIP\,98.4).  Medium examples (multi-section pages) reproduce
-content and color well with only small positional offsets
-(Block\,90.0, CLIP\,96.4).  Hard examples (complex multi-column dashboards)
-are only partially reproduced (Block\,75.3, CLIP\,58.0); deeply nested
-CSS grid and flex structures are where the model still struggles most.
-
-\begin{figure*}[t]
+\begin{figure*}[!t]
   \centering
   \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/easy_0_ref.png}
@@ -575,15 +555,25 @@ CSS grid and flex structures are where the model still struggles most.
   \label{fig:qualitative}
 \end{figure*}
 
-\begin{figure*}[t]
-  \centering
-  \includegraphics[width=0.85\textwidth]{design2code_results.pdf}
-  \caption{Design2Code benchmark comparison. \model{VisionCoder} (SFT+RL,
-    4B params) outperforms Design2Code-18B on Block, Position, Color, and
-    CLIP with 4.5$\times$ fewer parameters. Only Text favours the larger model.}
-  \label{fig:results}
-\end{figure*}
+Figure~\ref{fig:training} tracks reward components and completion lengths
+over 500 GRPO steps.  In the first 100 steps, format and validity rewards
+jump to near-perfect; the model quickly learns the output contract (HTML fence,
+DOCTYPE, required tags) and the gradient signal shifts entirely to visual
+metrics.  After step 100, CLIP and SSIM rise steadily while the total reward
+climbs from roughly 2.4 to 5.0.  Completion length drops sharply from around
+1{,}000 tokens to around 460: the model learns to write compact HTML
+rather than filling the context with redundant tags and inline comments.
 
+\subsection{Qualitative Results}
+
+Figure~\ref{fig:qualitative} shows reference-prediction pairs from
+VisionCoder-Env at three difficulty levels.  Easy examples (simple
+single-column pages) come out very close to the reference
+(Block\,91.0, CLIP\,98.4).  Medium examples (multi-section pages) reproduce
+content and color well with only small positional offsets
+(Block\,90.0, CLIP\,96.4).  Hard examples (complex multi-column dashboards)
+are only partially reproduced (Block\,75.3, CLIP\,58.0); deeply nested
+CSS grid and flex structures are where the model still struggles most.
 
 % ========================================================================
 \section{Conclusion}

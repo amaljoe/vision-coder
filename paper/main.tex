@@ -536,36 +536,35 @@ content and color well with only small positional offsets
 are only partially reproduced (Block\,75.3, CLIP\,58.0); deeply nested
 CSS grid and flex structures are where the model still struggles most.
 
-\begin{figure}[t]
+\begin{figure*}[t]
   \centering
-  \begin{subfigure}[b]{0.49\columnwidth}
+  \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/easy_0_ref.png}
     \caption*{Reference (easy)}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.49\columnwidth}
-    \includegraphics[width=\linewidth]{../assets/qual_openenv/after/easy_0_pred.png}
-    \caption*{Prediction (easy)}
-  \end{subfigure}
-
-  \vspace{3pt}
-  \begin{subfigure}[b]{0.49\columnwidth}
+  \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/medium_0_ref.png}
     \caption*{Reference (medium)}
   \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.49\columnwidth}
-    \includegraphics[width=\linewidth]{../assets/qual_openenv/after/medium_0_pred.png}
-    \caption*{Prediction (medium)}
-  \end{subfigure}
-
-  \vspace{3pt}
-  \begin{subfigure}[b]{0.49\columnwidth}
+  \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/hard_0_ref.png}
     \caption*{Reference (hard)}
   \end{subfigure}
+
+  \vspace{4pt}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\linewidth]{../assets/qual_openenv/after/easy_0_pred.png}
+    \caption*{Prediction (easy)}
+  \end{subfigure}
   \hfill
-  \begin{subfigure}[b]{0.49\columnwidth}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \includegraphics[width=\linewidth]{../assets/qual_openenv/after/medium_0_pred.png}
+    \caption*{Prediction (medium)}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
     \includegraphics[width=\linewidth]{../assets/qual_openenv/after/hard_0_pred.png}
     \caption*{Prediction (hard)}
   \end{subfigure}
@@ -574,7 +573,7 @@ CSS grid and flex structures are where the model still struggles most.
     medium pages are reproduced with high fidelity. Hard examples with deeply
     nested grid/flex layouts remain the main failure mode.}
   \label{fig:qualitative}
-\end{figure}
+\end{figure*}
 
 \begin{figure*}[t]
   \centering
